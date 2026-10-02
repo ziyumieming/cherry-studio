@@ -8,6 +8,7 @@
  */
 
 import { messageService } from '@data/services/MessageService'
+import { sessionGraphProtectionService } from '@data/services/SessionGraphProtectionService'
 import {
   BranchMessagesQuerySchema,
   CreateMessageSchema,
@@ -22,6 +23,10 @@ import type { HandlersFor } from '@shared/data/api/types'
 import { MessageDataSchema } from '@shared/data/types/message'
 
 export const messageHandlers: HandlersFor<MessageSchemas> = {
+  '/topics/:topicId/history-protection': {
+    GET: async ({ params }) => sessionGraphProtectionService.getTopicProtection(params.topicId)
+  },
+
   '/messages/:id/reply-group': {
     DELETE: async ({ params }) => {
       return messageService.deleteReplyGroup(params.id)

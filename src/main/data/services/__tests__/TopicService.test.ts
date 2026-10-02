@@ -1607,7 +1607,9 @@ describe('TopicService', () => {
         { endpoint: '/topics', kind: 'membership', entityIds: [result.id] },
         { endpoint: '/topics', kind: 'order', dimension: 'lastActivityAt', entityIds: [result.id] },
         { endpoint: '/topics/:id', entityIds: [result.id] },
-        { endpoint: '/topics/latest' }
+        { endpoint: '/topics/latest' },
+        { endpoint: '/topics/:topicId/history-protection', routeParams: { topicId: 'src-t' } },
+        { endpoint: '/topics/:topicId/history-protection', routeParams: { topicId: result.id } }
       ])
       expect(result.id).not.toBe('src-t')
       expect(result.name).toBe('Source')

@@ -179,7 +179,21 @@ export type PathThroughQueryParams = z.infer<typeof PathThroughQuerySchema>
  * - /messages/:id/reply-group - Assistant reply group operations
  * - /messages/:id - Individual message operations
  */
+export interface TopicHistoryProtection {
+  lockedMessageIds: string[]
+  deleteBlockedMessageIds: string[]
+  replyGroupDeleteBlockedMessageIds: string[]
+  regenerateBlockedMessageIds: string[]
+}
+
 export type MessageSchemas = {
+  '/topics/:topicId/history-protection': {
+    GET: {
+      params: { topicId: string }
+      response: TopicHistoryProtection
+    }
+  }
+
   /**
    * Delete the complete assistant reply group containing one representative.
    *

@@ -67,7 +67,7 @@ const ActionButtonWithConfirm = ({
   icon = action.icon,
   onConfirmOpen,
   softHoverBg,
-  tooltip = action.label
+  tooltip = action.availability.reason ?? action.label
 }: {
   action: MessageMenuBarResolvedAction
   executeAction: (action: MessageMenuBarResolvedAction) => void | Promise<void>
@@ -283,6 +283,9 @@ export function renderModelPickerToolbarAction({
   onMenuOpenChange
 }: MessageMenuBarToolbarRenderContext) {
   const label = typeof action.label === 'string' ? action.label : undefined
+  if (!action.availability.enabled) {
+    return <ActionButtonWithConfirm action={action} executeAction={() => undefined} softHoverBg={softHoverBg} />
+  }
 
   return (
     <span className="contents" onClick={(event) => event.stopPropagation()}>
@@ -310,6 +313,9 @@ export function renderTranslateToolbarAction({
   translationItems,
   onMenuOpenChange
 }: MessageMenuBarToolbarRenderContext) {
+  if (!action.availability.enabled) {
+    return <ActionButtonWithConfirm action={action} executeAction={() => undefined} softHoverBg={softHoverBg} />
+  }
   if (actionContext.isTranslating) {
     const label = actionContext.t('translate.stop')
     return (

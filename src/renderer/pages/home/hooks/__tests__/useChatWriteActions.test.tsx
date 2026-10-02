@@ -1,5 +1,6 @@
+import { MockUseDataApiUtils } from '@test-mocks/renderer/useDataApi'
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { invalidateMessages, loggerError, streamOpen } = vi.hoisted(() => ({
   invalidateMessages: vi.fn(),
@@ -836,5 +837,81 @@ describe('useChatWriteActions — fork and resend', () => {
     const { actions } = renderActions([uiMsg('u1', 'user', 'vroot')], cache)
 
     await expect(actions.forkAndResend('u1', [{ type: 'text', text: 'edited' }] as any)).rejects.toThrow('blocked')
+  })
+})
+
+describe('useChatWriteActions — shared history', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    MockUseDataApiUtils.mockQueryData('/topics/:topicId/history-protection', {
+      lockedMessageIds: ['u1', 'a1'],
+      deleteBlockedMessageIds: ['u1', 'a1'],
+      replyGroupDeleteBlockedMessageIds: ['a1', 'alternative'],
+      regenerateBlockedMessageIds: ['u1', 'a1', 'alternative']
+    })
+  })
+  afterEach(() => {
+    MockUseDataApiUtils.mockQueryData('/topics/:topicId/history-protection', {
+      lockedMessageIds: [],
+      deleteBlockedMessageIds: [],
+      replyGroupDeleteBlockedMessageIds: [],
+      regenerateBlockedMessageIds: []
+    })
+  })
+  it('rejects editing and generation before optimistic changes or stream dispatch', async () => {
+    const { actions, cache, regenerate, seedReservedMessages } = renderActions([
+      uiMsg('u1', 'user', 'vroot'),
+      uiMsg('a1', 'assistant', 'u1'),
+      uiMsg('alternative', 'assistant', 'u1')
+    ])
+    await expect(actions.editMessage('a1', [])).rejects.toThrow()
+    await expect(actions.forkAndResend('u1', [])).rejects.toThrow()
+    await expect(actions.regenerate('alternative')).rejects.toThrow()
+    await expect(actions.resend('a1')).rejects.toThrow()
+    expect(cache.seedOptimisticBranch).not.toHaveBeenCalled()
+    expect(cache.patchMessageTrigger).not.toHaveBeenCalled()
+    expect(cache.createSiblingTrigger).not.toHaveBeenCalled()
+    expect(streamOpen).not.toHaveBeenCalled()
+    expect(regenerate).not.toHaveBeenCalled()
+    expect(seedReservedMessages).not.toHaveBeenCalled()
+  })
+  it('keeps an unshared answer individually deletable but blocks deleting its shared reply group', async () => {
+    const { actions, cache } = renderActions([
+      uiMsg('u1', 'user', 'vroot'),
+      uiMsg('a1', 'assistant', 'u1'),
+      uiMsg('alternative', 'assistant', 'u1')
+    ])
+    expect(actions.getMessageDeleteAvailability('alternative')).toEqual({ enabled: true })
+    expect(actions.getMessageGroupDeleteAvailability?.('alternative')).toEqual({
+      enabled: false,
+      reason: 'shared-history'
+    })
+    await expect(actions.deleteMessageGroup(['alternative'])).rejects.toThrow()
+    await expect(actions.deleteMessage('alternative', { selectedMessageIds: ['alternative', 'a1'] })).rejects.toThrow()
+    expect(cache.deleteMessageGroupTrigger).not.toHaveBeenCalled()
+    expect(cache.deleteMessageTrigger).not.toHaveBeenCalled()
+    await actions.deleteMessage('alternative')
+    expect(cache.deleteMessageTrigger).toHaveBeenCalledWith({
+      params: { id: 'alternative' },
+      query: { cascade: false }
+    })
+  })
+  it('blocks writes while protection is unavailable and recovers when it loads', async () => {
+    MockUseDataApiUtils.mockQueryLoading('/topics/:topicId/history-protection')
+    const view = renderActions([uiMsg('u1', 'user', 'vroot')])
+    expect(view.actions.getMessageDeleteAvailability('u1')).toEqual({ enabled: false, reason: 'protection-pending' })
+    await expect(view.actions.editMessage('u1', [])).rejects.toThrow()
+    MockUseDataApiUtils.mockQueryData('/topics/:topicId/history-protection', {
+      lockedMessageIds: [],
+      deleteBlockedMessageIds: [],
+      replyGroupDeleteBlockedMessageIds: [],
+      regenerateBlockedMessageIds: []
+    })
+    view.rerender({ composerModelId: undefined })
+    await view.result.current.actions.editMessage('u1', [{ type: 'text', text: 'Now editable' }])
+    expect(view.cache.patchMessageTrigger).toHaveBeenCalledWith({
+      params: { id: 'u1' },
+      body: { data: { parts: [{ type: 'text', text: 'Now editable' }] } }
+    })
   })
 })

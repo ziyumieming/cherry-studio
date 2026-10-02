@@ -859,6 +859,9 @@ export function useHomeMessageListProviderValue({
       updateRenderConfig,
       editMessage,
       startEditing,
+      getMessageMutationUnavailableReason: chatWrite?.getMessageMutationUnavailableReason,
+      getMessageReadOnlyReason: chatWrite?.getMessageReadOnlyReason,
+      getMessageGroupDeleteAvailability: chatWrite?.getMessageGroupDeleteAvailability,
       getMessageDeleteAvailability: normalInteractionsEnabled ? getMessageDeleteAvailability : undefined,
       deleteMessage: normalInteractionsEnabled ? deleteMessage : undefined,
       startMessageBranch,
@@ -876,6 +879,7 @@ export function useHomeMessageListProviderValue({
     }),
     [
       abortTool,
+      chatWrite,
       abortMessageTranslation,
       bindMessageGroupRuntime,
       bindMessageRuntime,

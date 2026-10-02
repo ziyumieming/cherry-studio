@@ -1153,3 +1153,36 @@ describe('messageMenuBarActions', () => {
     expect(setCopied).not.toHaveBeenCalled()
   })
 })
+
+describe('shared-history message actions', () => {
+  it('disables mutation commands with a reason while preserving copy, branch, and fork', async () => {
+    const regenerate = vi.fn()
+    const edit = vi.fn()
+    const context = createActionContext({
+      actions: {
+        regenerateMessage: regenerate,
+        renderRegenerateModelPicker: () => null,
+        editMessage: edit,
+        startMessageBranch: vi.fn(),
+        copyBranchToNewTopic: vi.fn(),
+        getMessageMutationUnavailableReason: () => 'Shared history is read-only'
+      }
+    })
+    const toolbar = resolveMessageMenuBarToolbarActions(context)
+    for (const id of ['assistant-regenerate', 'assistant-mention-model']) {
+      expect(toolbar.find((action) => action.id === id)?.availability).toMatchObject({
+        enabled: false,
+        reason: 'Shared history is read-only'
+      })
+    }
+    expect(toolbar.find((action) => action.id === 'copy')?.availability.enabled).toBe(true)
+    const menu = resolveMessageMenuBarMenuActions(context)
+    expect(menu.find((action) => action.id === 'edit')?.availability.enabled).toBe(false)
+    expect(menu.find((action) => action.id === 'new-branch')?.availability.enabled).toBe(true)
+    expect(menu.find((action) => action.id === 'copy-to-new-topic')?.availability.enabled).toBe(true)
+    await executeMessageMenuBarAction('assistant-regenerate', context)
+    await executeMessageMenuBarAction('edit', context)
+    expect(regenerate).not.toHaveBeenCalled()
+    expect(context.startEditingMessage).not.toHaveBeenCalled()
+  })
+})

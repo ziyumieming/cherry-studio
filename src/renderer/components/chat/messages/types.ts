@@ -1,6 +1,10 @@
 import type { ReactNode } from 'react'
 
-import type { DeleteMessageOptions, MessageDeleteAvailability } from '@renderer/hooks/chat/ChatWriteContext'
+import type {
+  ChatWriteActions,
+  DeleteMessageOptions,
+  MessageDeleteAvailability
+} from '@renderer/hooks/chat/ChatWriteContext'
 import type { SerializedError } from '@renderer/types/error'
 import type { FileMetadata } from '@renderer/types/file'
 import type { Citation, MessageUiState } from '@renderer/types/message'
@@ -426,6 +430,9 @@ export interface MessageListActions {
   deleteSelectedMessages?: (messageIds?: readonly string[]) => void | Promise<void>
   updateMessageUiState?: (messageId: string, updates: MessageUiState) => void
   updateRenderConfig?: (updates: MessageRenderConfigUpdate) => void
+  getMessageMutationUnavailableReason?: ChatWriteActions['getMessageMutationUnavailableReason']
+  getMessageReadOnlyReason?: ChatWriteActions['getMessageReadOnlyReason']
+  getMessageGroupDeleteAvailability?: ChatWriteActions['getMessageGroupDeleteAvailability']
   canEditMessage?: (message: MessageListItem) => boolean
   editLabel?: string
   editMessage?: (messageId: string, parts: CherryMessagePart[]) => void | Promise<void>

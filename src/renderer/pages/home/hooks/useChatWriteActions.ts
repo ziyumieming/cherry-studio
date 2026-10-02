@@ -18,6 +18,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { dataApiService } from '@data/DataApiService'
 import { loggerService } from '@logger'
 import type { ChatWriteActions } from '@renderer/hooks/chat/ChatWriteContext'
+import { useTopicHistoryProtection } from '@renderer/hooks/chat/useTopicHistoryProtection'
 import type { ReservedMessageSeedOptions } from '@renderer/hooks/useConversationTurnController'
 import { ipcApi } from '@renderer/ipc'
 import { getStreamBlockedMessage } from '@renderer/services/aiTransport'
@@ -130,6 +131,15 @@ export function useChatWriteActions(params: Params): Result {
     createMessageTrigger,
     setActiveNodeTrigger
   } = cache
+  const protection = useTopicHistoryProtection(topic.id)
+  const { getUnavailableReason, getReadOnlyReason } = protection
+  const assertMutable = useCallback(
+    (id: string, operation: Parameters<typeof getUnavailableReason>[1]) => {
+      const reason = getUnavailableReason(id, operation)
+      if (reason) throw new Error(reason)
+    },
+    [getUnavailableReason]
+  )
   const startNewContextPromiseRef = useRef<Promise<void> | null>(null)
   const [isStartingNewContext, setIsStartingNewContext] = useState(false)
 
@@ -145,6 +155,7 @@ export function useChatWriteActions(params: Params): Result {
     const operation = (async () => {
       const activeMessage = uiMessages.find((message) => message.id === activeNodeId)
       if (hasClearContextPart(activeMessage?.parts)) {
+        assertMutable(activeNodeId, 'delete')
         await seedOptimisticBranch((items) => branchWithoutIds(items, new Set([activeNodeId])))
         try {
           await deleteMessageTrigger({ params: { id: activeNodeId }, query: { cascade: false } })
@@ -185,6 +196,7 @@ export function useChatWriteActions(params: Params): Result {
     return trackedOperation
   }, [
     activeNodeId,
+    assertMutable,
     branchWithoutIds,
     createMessageTrigger,
     deleteMessageTrigger,
@@ -196,18 +208,38 @@ export function useChatWriteActions(params: Params): Result {
     topic.id,
     uiMessages
   ])
-  const canStartNewContext = Boolean(activeNodeId) && !startNewContextBlocked && !isStartingNewContext
+  const canStartNewContext =
+    Boolean(activeNodeId) &&
+    !startNewContextBlocked &&
+    !isStartingNewContext &&
+    !(
+      activeNodeId &&
+      hasClearContextPart(uiMessages.find((message) => message.id === activeNodeId)?.parts) &&
+      getUnavailableReason(activeNodeId, 'delete')
+    )
 
   const getMessageDeleteAvailability = useCallback<ChatWriteActions['getMessageDeleteAvailability']>(
     (id: string) => {
       const message = uiMessages.find((item) => item.id === id)
       if (!message) return { enabled: false, reason: 'not-loaded' }
+      if (!protection.data) return { enabled: false, reason: 'protection-pending' }
+      if (getUnavailableReason(id, 'delete')) return { enabled: false, reason: 'shared-history' }
       if (message.role === 'assistant' && message.metadata?.status === 'pending') {
         return { enabled: false, reason: 'generating' }
       }
       return { enabled: true }
     },
-    [uiMessages]
+    [uiMessages, protection.data, getUnavailableReason]
+  )
+  const getMessageGroupDeleteAvailability = useCallback<
+    NonNullable<ChatWriteActions['getMessageGroupDeleteAvailability']>
+  >(
+    (id) => {
+      const availability = getMessageDeleteAvailability(id)
+      if (!availability.enabled) return availability
+      return getUnavailableReason(id, 'delete-group') ? { enabled: false, reason: 'shared-history' } : { enabled: true }
+    },
+    [getMessageDeleteAvailability, getUnavailableReason]
   )
 
   const handleDeleteMessage = useCallback<ChatWriteActions['deleteMessage']>(
@@ -218,6 +250,8 @@ export function useChatWriteActions(params: Params): Result {
       const selectionContainsUnavailableMessage = options?.selectedMessageIds?.some((messageId) => {
         return !getMessageDeleteAvailability(messageId).enabled
       })
+      assertMutable(id, 'delete')
+      for (const selectedId of options?.selectedMessageIds ?? []) assertMutable(selectedId, 'delete')
       if (!getMessageDeleteAvailability(id).enabled || selectionContainsUnavailableMessage) {
         throw new Error('Message deletion is unavailable')
       }
@@ -233,12 +267,13 @@ export function useChatWriteActions(params: Params): Result {
       }
       logger.info('Deleted message', { id })
     },
-    [deleteMessageTrigger, getMessageDeleteAvailability, rollbackBranch]
+    [assertMutable, deleteMessageTrigger, getMessageDeleteAvailability, rollbackBranch]
   )
 
   const handleDeleteMessageGroup = useCallback<ChatWriteActions['deleteMessageGroup']>(
     async (messageIds) => {
       const uniqueMessageIds = Array.from(new Set(messageIds))
+      for (const id of uniqueMessageIds) assertMutable(id, 'delete-group')
       if (
         uniqueMessageIds.length === 0 ||
         uniqueMessageIds.some((messageId) => !getMessageDeleteAvailability(messageId).enabled)
@@ -258,11 +293,19 @@ export function useChatWriteActions(params: Params): Result {
         throw err
       }
     },
-    [branchWithoutIds, deleteMessageGroupTrigger, getMessageDeleteAvailability, rollbackBranch, seedOptimisticBranch]
+    [
+      assertMutable,
+      branchWithoutIds,
+      deleteMessageGroupTrigger,
+      getMessageDeleteAvailability,
+      rollbackBranch,
+      seedOptimisticBranch
+    ]
   )
 
   const handleEditMessage = useCallback<ChatWriteActions['editMessage']>(
     async (messageId, editedParts) => {
+      assertMutable(messageId, 'edit')
       await seedOptimisticBranch((items) => {
         const patch = (msg: BranchMessagesResponse['items'][number]['message']) =>
           msg.id === messageId ? { ...msg, data: { ...msg.data, parts: editedParts } } : msg
@@ -280,7 +323,7 @@ export function useChatWriteActions(params: Params): Result {
         throw err
       }
     },
-    [patchMessageTrigger, rollbackBranch, seedOptimisticBranch]
+    [assertMutable, patchMessageTrigger, rollbackBranch, seedOptimisticBranch]
   )
 
   const capabilityBody = useMemo<Record<string, unknown>>(
@@ -293,6 +336,8 @@ export function useChatWriteActions(params: Params): Result {
   /** Regenerate with capability body + target-driven anchor/model. */
   const regenerateWithCapabilities = useCallback(
     async (messageId?: string, options?: { modelId?: UniqueModelId; turnOptions?: AssistantTurnOptions }) => {
+      const effectiveMessageId = messageId ?? activeNodeId
+      if (effectiveMessageId) assertMutable(effectiveMessageId, 'regenerate')
       const target = messageId ? uiMessages.find((m) => m.id === messageId) : undefined
       const parentAnchorId = target
         ? target.role === 'user'
@@ -374,11 +419,22 @@ export function useChatWriteActions(params: Params): Result {
       })
       await regeneratePromise
     },
-    [regenerate, capabilityBody, uiMessages, setMessages, seedReservedMessages, topic.id, composerModelId]
+    [
+      activeNodeId,
+      assertMutable,
+      regenerate,
+      capabilityBody,
+      uiMessages,
+      setMessages,
+      seedReservedMessages,
+      topic.id,
+      composerModelId
+    ]
   )
 
   const handleForkAndResend = useCallback<ChatWriteActions['forkAndResend']>(
     async (messageId, editedParts, turnOptions) => {
+      assertMutable(messageId, 'edit')
       const inheritedModelIds = getDirectAssistantModelIds(uiMessages, messageId)
       const sourceMessage = uiMessages.find((message) => message.id === messageId)
       const effectiveTurnOptions = turnOptions ?? getInheritedTurnOptions(uiMessages, sourceMessage)
@@ -429,11 +485,22 @@ export function useChatWriteActions(params: Params): Result {
         preserveActiveNode: ack.preserveActiveNode
       })
     },
-    [createSiblingTrigger, seedReservedMessages, refresh, setMessages, topic.id, topic.assistantId, uiMessages]
+    [
+      assertMutable,
+      createSiblingTrigger,
+      seedReservedMessages,
+      refresh,
+      setMessages,
+      topic.id,
+      topic.assistantId,
+      uiMessages
+    ]
   )
 
   const handleResend = useCallback<ChatWriteActions['resend']>(
     async (messageId) => {
+      const effectiveMessageId = messageId ?? activeNodeId
+      if (effectiveMessageId) assertMutable(effectiveMessageId, 'regenerate')
       const target = messageId ? uiMessages.find((m) => m.id === messageId) : undefined
       const parentAnchorId = target
         ? target.role === 'user'
@@ -465,7 +532,7 @@ export function useChatWriteActions(params: Params): Result {
         preserveActiveNode: ack.preserveActiveNode
       })
     },
-    [regenerateWithCapabilities, seedReservedMessages, topic.id, uiMessages]
+    [activeNodeId, assertMutable, regenerateWithCapabilities, seedReservedMessages, topic.id, uiMessages]
   )
 
   const handleSetActiveNode = useCallback<ChatWriteActions['setActiveNode']>(
@@ -527,6 +594,9 @@ export function useChatWriteActions(params: Params): Result {
   const actions = useMemo<ChatWriteActions>(
     () => ({
       canStartNewContext,
+      getMessageMutationUnavailableReason: getUnavailableReason,
+      getMessageReadOnlyReason: getReadOnlyReason,
+      getMessageGroupDeleteAvailability,
       startNewContext: handleStartNewContext,
       regenerate: async (messageId, options) => regenerateWithCapabilities(messageId, options),
       resend: handleResend,
@@ -542,6 +612,9 @@ export function useChatWriteActions(params: Params): Result {
     }),
     [
       canStartNewContext,
+      getUnavailableReason,
+      getReadOnlyReason,
+      getMessageGroupDeleteAvailability,
       regenerateWithCapabilities,
       handleStartNewContext,
       handleResend,

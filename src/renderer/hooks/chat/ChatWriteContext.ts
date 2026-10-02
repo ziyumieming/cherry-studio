@@ -12,6 +12,8 @@ import { createContext, use } from 'react'
 import type { AssistantTurnOptions, CherryMessagePart } from '@shared/data/types/message'
 import type { UniqueModelId } from '@shared/data/types/model'
 
+export type MessageMutation = 'edit' | 'regenerate' | 'delete' | 'delete-group'
+
 /** Optional arguments passed alongside `deleteMessage`. */
 export interface DeleteMessageOptions {
   modelName?: string
@@ -19,7 +21,9 @@ export interface DeleteMessageOptions {
   selectedMessageIds?: readonly string[]
 }
 
-export type MessageDeleteAvailability = { enabled: true } | { enabled: false; reason: 'not-loaded' | 'generating' }
+export type MessageDeleteAvailability =
+  | { enabled: true }
+  | { enabled: false; reason: 'not-loaded' | 'generating' | 'shared-history' | 'protection-pending' }
 
 /** Chat write actions injected via React Context. Operations delegate to DataApi + useChat. */
 /** Options carried alongside a regenerate request. */
@@ -38,6 +42,9 @@ export interface RegenerateOptions {
 export interface ChatWriteActions {
   /** Whether a context boundary can be created or removed in the current topic state. */
   canStartNewContext: boolean
+  getMessageMutationUnavailableReason?: (id: string, operation: MessageMutation) => string | undefined
+  getMessageReadOnlyReason?: (id: string) => string | undefined
+  getMessageGroupDeleteAvailability?: (id: string) => MessageDeleteAvailability
   /** Create a context boundary at the active leaf, or remove it when it is already the active leaf. */
   startNewContext: () => Promise<void>
   regenerate: (messageId?: string, options?: RegenerateOptions) => Promise<void>

@@ -220,3 +220,78 @@ describe('shared ancestor write protection', () => {
     expect(dbh.sqlite.prepare('SELECT count(*) AS n FROM session_graph_message_copy').get()).toEqual({ n: 0 })
   })
 })
+
+describe('Shared-history UI read model', () => {
+  const dbh = setupTestDatabase()
+  it('distinguishes shared content, regeneration, and hidden reply-group members across topics', () => {
+    dbh.db.insert(topicTable).values({ id: 'protection-source', orderKey: 'a0' }).run()
+    const topicId = 'protection-source'
+    const data = { parts: [{ type: 'text' as const, text: 'Network question' }] }
+    dbh.db
+      .insert(messageTable)
+      .values(
+        withRoot(topicId, [
+          { id: 'shared-question', topicId, parentId: null, role: 'user', data, status: 'success' },
+          {
+            id: 'shared-answer',
+            topicId,
+            parentId: 'shared-question',
+            role: 'assistant',
+            data,
+            status: 'success',
+            siblingsGroupId: 42
+          },
+          {
+            id: 'hidden-alternative',
+            topicId,
+            parentId: 'shared-question',
+            role: 'assistant',
+            data,
+            status: 'success',
+            siblingsGroupId: 42
+          },
+          { id: 'independent-question', topicId, parentId: 'shared-answer', role: 'user', data, status: 'success' },
+          {
+            id: 'independent-answer',
+            topicId,
+            parentId: 'independent-question',
+            role: 'assistant',
+            data,
+            status: 'success',
+            siblingsGroupId: 42
+          }
+        ])
+      )
+      .run()
+    const fork = topicService.duplicate(topicId, { nodeId: 'shared-answer' })
+    const source = sessionGraphProtectionService.getTopicProtection(topicId)
+    expect(source.lockedMessageIds.sort()).toEqual(['shared-answer', 'shared-question'])
+    expect(source.deleteBlockedMessageIds).not.toContain('hidden-alternative')
+    expect(source.replyGroupDeleteBlockedMessageIds.sort()).toEqual(['hidden-alternative', 'shared-answer'])
+    expect(source.regenerateBlockedMessageIds.sort()).toEqual([
+      'hidden-alternative',
+      'shared-answer',
+      'shared-question'
+    ])
+    expect(source.regenerateBlockedMessageIds).not.toContain('independent-answer')
+    const copied = sessionGraphProtectionService.getTopicProtection(fork.id)
+    expect(copied.lockedMessageIds).toHaveLength(2)
+    expect(copied.lockedMessageIds).not.toContain('shared-answer')
+    expect(copied.regenerateBlockedMessageIds.sort()).toEqual(copied.lockedMessageIds.sort())
+    topicService.delete(fork.id)
+    expect(() => sessionGraphProtectionService.getTopicProtection(fork.id)).toThrow(DataApiError)
+    expect(sessionGraphProtectionService.getTopicProtection(topicId).lockedMessageIds.sort()).toEqual(
+      source.lockedMessageIds.sort()
+    )
+  })
+  it('returns an empty protection model for ordinary history and rejects missing topics', () => {
+    dbh.db.insert(topicTable).values({ id: 'ordinary', orderKey: 'a0' }).run()
+    expect(sessionGraphProtectionService.getTopicProtection('ordinary')).toEqual({
+      lockedMessageIds: [],
+      deleteBlockedMessageIds: [],
+      replyGroupDeleteBlockedMessageIds: [],
+      regenerateBlockedMessageIds: []
+    })
+    expect(() => sessionGraphProtectionService.getTopicProtection('missing')).toThrow(DataApiError)
+  })
+})
