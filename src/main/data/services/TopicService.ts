@@ -35,6 +35,7 @@ import type { Topic } from '@shared/data/types/topic'
 import { getDataService, registerDataService } from './dataServiceRegistry'
 import { pinService } from './PinService'
 import { sessionGraphIdentityService } from './SessionGraphIdentityService'
+import { sessionGraphProtectionService } from './SessionGraphProtectionService'
 import { tagService } from './TagService'
 import { applyMoves, insertWithOrderKey } from './utils/orderKey'
 import {
@@ -325,6 +326,9 @@ export class TopicService {
       if (!sourceTopic) throw DataApiErrorFactory.notFound('Topic', sourceTopicId)
 
       const sourcePathRows = messageService.getPathRowsToNodeTx(tx, dto.nodeId, { topicId: sourceTopicId })
+      if (sourcePathRows.some((row) => row.status === 'pending')) {
+        throw DataApiErrorFactory.invalidOperation('duplicate topic', 'the copied history is still generating')
+      }
 
       const newTopicRow = insertWithOrderKey(
         tx,
@@ -352,6 +356,7 @@ export class TopicService {
       })
 
       sessionGraphIdentityService.mapCopiedPathTx(tx, sourcePathRows, copiedMessageIds)
+      sessionGraphProtectionService.lockCopiedPathTx(tx, copiedMessageIds)
 
       // Intentionally copies only topic metadata, root-to-node messages, and chat-message file refs.
       // Pins, tags, trace links, and pruned siblings/descendants stay with their original rows.
