@@ -51,6 +51,7 @@ import { hasClearContextPart, isBlankUserTurn, readCherryMeta } from '@shared/da
 
 import { aiUsageRecordService, mergeMessageRuntimeStats } from './AiUsageRecordService'
 import { getDataService, registerDataService } from './dataServiceRegistry'
+import { sessionGraphProtectionService } from './SessionGraphProtectionService'
 import { isAssistantActivityTransition, isConversationActivityRole } from './utils/activityTime'
 import { type SearchFetchContext, searchWithCursor } from './utils/ftsSearch'
 import { asNumericKey, decodeListCursor, encodeCursor, keysetOrdering } from './utils/keysetCursor'
@@ -1013,6 +1014,7 @@ export class MessageService {
   updateSiblingsGroupId(id: string, siblingsGroupId: number): void {
     application.get('DbService').withWriteTx((tx) => {
       this.getAddressableMessageRowTx(tx, id)
+      sessionGraphProtectionService.assertMutableTx(tx, [id], 'update message group')
       tx.update(messageTable).set({ siblingsGroupId }).where(eq(messageTable.id, id)).run()
     })
   }
@@ -1038,6 +1040,10 @@ export class MessageService {
   createSibling(sourceId: string, data: MessageData): Message {
     const message = application.get('DbService').withWriteTx((tx) => {
       const source = this.getAddressableMessageRowTx(tx, sourceId)
+      sessionGraphProtectionService.assertMutableTx(tx, [sourceId], 'edit or regenerate message')
+      if (source.role === 'assistant' && source.parentId) {
+        sessionGraphProtectionService.assertMutableTx(tx, [source.parentId], 'regenerate answer')
+      }
       // The virtual root has no siblings — copying its null parentId would insert a second
       // null-parent row and trip message_topic_root_uniq. Reject cleanly (the CHECK +
       // unique index are the structural backstop; this is the friendly API error).
@@ -1170,6 +1176,10 @@ export class MessageService {
           throw DataApiErrorFactory.invalidOperation('create message', 'Parent message does not belong to this topic')
         }
         resolvedParentId = dto.parentId
+      }
+
+      if (dto.role === 'assistant' && resolvedParentId) {
+        sessionGraphProtectionService.assertMutableTx(tx, [resolvedParentId], 'regenerate answer')
       }
 
       // Step 3: Insert the message using the resolved parentId.
@@ -1344,9 +1354,11 @@ export class MessageService {
             'User message does not belong to this topic'
           )
         }
+        sessionGraphProtectionService.assertMutableTx(tx, [row.id], 'regenerate answer')
         userMessage = rowToMessage(row)
       } else {
         const row = this.getAddressableMessageRowTx(tx, input.userMessage.id)
+        sessionGraphProtectionService.assertMutableTx(tx, [row.id], 'fill reserved branch')
         if (row.topicId !== input.topicId) {
           throw DataApiErrorFactory.invalidOperation('fill reserved branch', 'Message does not belong to this topic')
         }
@@ -1492,6 +1504,7 @@ export class MessageService {
     const message = application.get('DbService').withWriteTx((tx) => {
       // Get existing message within transaction
       const existingRow = this.getAddressableMessageRowTx(tx, id)
+      sessionGraphProtectionService.assertMutableTx(tx, [id], 'update message')
 
       const existing = rowToMessage(existingRow)
 
@@ -1574,6 +1587,7 @@ export class MessageService {
     let activityTopicId: string | null = null
     application.get('DbService').withWriteTx((tx) => {
       const row = this.getAddressableMessageRowTx(tx, id)
+      sessionGraphProtectionService.assertMutableTx(tx, [id], 'finalize answer')
       if (row.role !== 'assistant') {
         throw DataApiErrorFactory.invalidOperation('finalize message', 'only assistant messages can be finalized')
       }
@@ -1618,6 +1632,7 @@ export class MessageService {
   resetAssistantForRetry(id: string): Message {
     const { updated, affectedIds, topicId } = application.get('DbService').withWriteTx((tx) => {
       const row = this.getAddressableMessageRowTx(tx, id)
+      sessionGraphProtectionService.assertMutableTx(tx, [id], 'retry answer')
       if (row.role !== 'assistant') {
         throw DataApiErrorFactory.invalidOperation('retry message', 'only assistant messages can be retried')
       }
@@ -1742,6 +1757,7 @@ export class MessageService {
       const alreadySettledApprovalIds = decisions.map((d) => d.approvalId).filter((id) => settledIds.has(id))
       const targetPresent = appliedApprovalIds.length > 0
       if (targetPresent) {
+        sessionGraphProtectionService.assertMutableTx(tx, [anchorId], 'approve tool call')
         const stats = appliedApprovalIds.reduce(
           (current, approvalId) => completeApprovalWait(current, approvalId, completedAt),
           existing.stats ?? undefined
@@ -1816,6 +1832,7 @@ export class MessageService {
       }
 
       const targetIds = targets.map((message) => message.id)
+      sessionGraphProtectionService.assertMutableTx(tx, targetIds, 'delete answer group')
 
       const topic = this.getActiveTopicTx(tx, target.topicId)
 
@@ -1903,6 +1920,7 @@ export class MessageService {
       }
 
       const descendantIds = cascade ? this.getDescendantIdsTx(tx, id) : []
+      sessionGraphProtectionService.assertMutableTx(tx, [id, ...descendantIds], 'delete message')
       let deletedIds: string[]
       let reparentedIds: string[] | undefined
       let contextChangedIds: string[] = []
@@ -2092,6 +2110,11 @@ export class MessageService {
       .all()
 
     if (children.length === 0) return []
+    sessionGraphProtectionService.assertMutableTx(
+      tx,
+      children.map((child) => child.id),
+      'reparent messages'
+    )
 
     // siblingsGroupId is relative to the parent. Rebase each moved non-zero group
     // to a fresh id so groups from different deleted replies cannot collide with
@@ -2150,6 +2173,7 @@ export class MessageService {
       const deletedIds = rows.map((r) => r.id)
 
       if (deletedIds.length === 0) return { deletedIds }
+      sessionGraphProtectionService.assertMutableTx(tx, deletedIds, 'clear topic history')
 
       this.flattenUnderTx(tx, rootId, eq(messageTable.topicId, topicId))
       tx.delete(messageTable)

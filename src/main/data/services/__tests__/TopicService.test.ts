@@ -1697,7 +1697,7 @@ describe('TopicService', () => {
       expect(row?.isNameManuallyEdited).toBe(true)
     })
 
-    it('normalizes copied pending messages to error', async () => {
+    it('rejects copying pending history while leaving its stream-owned row intact', async () => {
       await dbh.db
         .insert(topicTable)
         .values({ id: 'src-t', name: 'Source', orderKey: 'a0', createdAt: 1, updatedAt: 1 })
@@ -1717,15 +1717,11 @@ describe('TopicService', () => {
         ])
       )
 
-      const result = topicService.duplicate('src-t', { nodeId: 'selected' })
-
-      // The copied content row (the only non-virtual-root row) is normalized to error.
-      const copiedRows = await dbh.db
-        .select()
-        .from(messageTable)
-        .where(and(eq(messageTable.topicId, result.id), isNotNull(messageTable.parentId)))
-      expect(copiedRows).toHaveLength(1)
-      expect(copiedRows[0].status).toBe('error')
+      expect(() => topicService.duplicate('src-t', { nodeId: 'selected' })).toThrow(/still generating/)
+      expect(await dbh.db.select().from(topicTable)).toHaveLength(1)
+      const [original] = await dbh.db.select().from(messageTable).where(eq(messageTable.id, 'selected'))
+      expect(original.status).toBe('pending')
+      expect(original.data.parts).toEqual([{ type: 'text', text: 'streaming' }])
     })
 
     it('copies the assistant and inserts first in the global topic order', async () => {

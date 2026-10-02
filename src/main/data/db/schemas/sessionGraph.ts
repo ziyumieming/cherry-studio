@@ -38,6 +38,13 @@ export const sessionGraphMessageCopyTable = sqliteTable(
   (t) => [index('session_graph_message_copy_graph_message_id_idx').on(t.graphMessageId)]
 )
 
+export const sessionGraphAncestorLockTable = sqliteTable('session_graph_ancestor_lock', {
+  messageId: text()
+    .primaryKey()
+    .references(() => messageTable.id, { onDelete: 'cascade' }),
+  lockedAt: integer().notNull().$defaultFn(Date.now)
+})
+
 export type SessionGraphTurnRow = typeof sessionGraphTurnTable.$inferSelect
 export type SessionGraphMessageRow = typeof sessionGraphMessageTable.$inferSelect
 export type SessionGraphMessageCopyRow = typeof sessionGraphMessageCopyTable.$inferSelect

@@ -70,6 +70,60 @@ describe('applyMigrations over a populated database', () => {
     rmSync(tempDir, { recursive: true, force: true })
   })
 
+  it('locks existing fork ancestors while preserving uncopied history during migrate-forward', () => {
+    sqlite.pragma('foreign_keys = ON')
+    applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline'), '0028_session_graph_ancestor_lock'))
+    const insertTopic = sqlite.prepare(
+      'INSERT INTO topic (id, order_key, created_at, updated_at, last_activity_at) VALUES (?, ?, 1, 1, 1)'
+    )
+    const insertMessage = sqlite.prepare(`INSERT INTO message
+      (id, topic_id, parent_id, role, data, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, '{"parts":[{"type":"text","text":"Preserved history"}]}', 'success', 1, 1)`)
+    for (const topicId of ['source', 'copy']) {
+      insertTopic.run(topicId, topicId)
+      insertMessage.run(`${topicId}-root`, topicId, null, 'root')
+      insertMessage.run(`${topicId}-system`, topicId, `${topicId}-root`, 'system')
+      insertMessage.run(`${topicId}-question`, topicId, `${topicId}-system`, 'user')
+      insertMessage.run(`${topicId}-answer`, topicId, `${topicId}-question`, 'assistant')
+    }
+    insertMessage.run('uncopied', 'source', 'source-answer', 'user')
+    sqlite.prepare('INSERT INTO session_graph_turn (id, created_at) VALUES (?, 1)').run('turn')
+    const insertIdentity = sqlite.prepare(
+      'INSERT INTO session_graph_message (id, turn_id, role, created_at) VALUES (?, ?, ?, 1)'
+    )
+    const insertCopy = sqlite.prepare(
+      'INSERT INTO session_graph_message_copy (message_id, graph_message_id) VALUES (?, ?)'
+    )
+    for (const role of ['user', 'assistant']) {
+      const suffix = role === 'user' ? 'question' : 'answer'
+      insertIdentity.run(suffix, 'turn', role)
+      for (const topicId of ['source', 'copy']) insertCopy.run(`${topicId}-${suffix}`, suffix)
+    }
+    const beforeMessages = sqlite.prepare('SELECT * FROM message ORDER BY id').all()
+    const beforeCopies = sqlite.prepare('SELECT * FROM session_graph_message_copy ORDER BY message_id').all()
+
+    applyMigrations(db, resolveMigrationsPath())
+    const locks = sqlite.prepare('SELECT * FROM session_graph_ancestor_lock ORDER BY message_id').all()
+    expect(locks).toHaveLength(6)
+    expect(locks.map((row) => (row as { message_id: string }).message_id)).toEqual([
+      'copy-answer',
+      'copy-question',
+      'copy-system',
+      'source-answer',
+      'source-question',
+      'source-system'
+    ])
+    expect(sqlite.prepare('SELECT * FROM message ORDER BY id').all()).toEqual(beforeMessages)
+    expect(sqlite.prepare('SELECT * FROM session_graph_message_copy ORDER BY message_id').all()).toEqual(beforeCopies)
+
+    sqlite.close()
+    sqlite = new Database(join(tempDir, 'test.db'))
+    db = drizzle({ client: sqlite, casing: 'snake_case' })
+    applyMigrations(db, resolveMigrationsPath())
+    expect(sqlite.prepare('SELECT * FROM session_graph_ancestor_lock ORDER BY message_id').all()).toEqual(locks)
+    expect(sqlite.pragma('foreign_key_check')).toEqual([])
+  })
+
   it('adds diagnostic history to a populated database and retains it after reopening', () => {
     applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline')))
     const now = Date.now()
