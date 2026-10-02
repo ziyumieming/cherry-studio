@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 
 import { application } from '@application'
-import { messageTable } from '@data/db/schemas/message'
+import { type MessageRow, messageTable } from '@data/db/schemas/message'
 import {
   sessionGraphMessageCopyTable,
   sessionGraphMessageTable,
@@ -68,6 +68,22 @@ export class SessionGraphIdentityService {
       .all()
     tx.insert(sessionGraphMessageCopyTable).values({ messageId, graphMessageId: graphMessage.id }).run()
     return { turnId, graphMessageId: graphMessage.id }
+  }
+
+  mapCopiedPathTx(
+    tx: DbOrTx,
+    sourcePathRows: readonly MessageRow[],
+    copiedMessageIds: ReadonlyMap<string, string>
+  ): void {
+    const copiedUserIds = new Set(sourcePathRows.filter((row) => row.role === 'user').map((row) => row.id))
+    for (const row of sourcePathRows) {
+      if (row.role !== 'user' && (row.role !== 'assistant' || !row.parentId || !copiedUserIds.has(row.parentId))) {
+        continue
+      }
+      const copiedMessageId = copiedMessageIds.get(row.id)
+      if (!copiedMessageId) throw new Error(`Copied message missing from path: ${row.id}`)
+      this.mapCopyTx(tx, row.id, copiedMessageId)
+    }
   }
 
   mapCopyTx(tx: DbOrTx, sourceMessageId: string, copiedMessageId: string): MessageIdentity {
