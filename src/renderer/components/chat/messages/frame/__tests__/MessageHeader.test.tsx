@@ -8,6 +8,7 @@ import MessageHeader from '../MessageHeader'
 const providerState = vi.hoisted(() => ({
   actions: {} as {
     navigateToRoute?: (target: { path: string; query?: Record<string, string> }) => void
+    getMessageReadOnlyReason?: (id: string) => string | undefined
     selectMessage?: (messageId: string, selected: boolean) => void
   },
   selection: undefined as { isMultiSelectMode: boolean; selectedMessageIds: string[] } | undefined
@@ -75,6 +76,7 @@ vi.mock('../../MessageListProvider', () => ({
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: { agent?: string; session?: string; round?: number }) => {
+      if (key === 'message.shared_history.label') return 'Shared history'
       if (key === 'agent.session_delivery.from') return `From ${values?.agent} / ${values?.session}`
       if (key === 'agent.session_turn_origin.goal_round') return `Goal round ${values?.round}`
       return key
@@ -263,4 +265,14 @@ describe('MessageHeader', () => {
       query: { sessionId: 'session-source' }
     })
   })
+})
+
+it('identifies immutable common history and removes the badge for an independent message', () => {
+  providerState.actions = {
+    getMessageReadOnlyReason: (id) => (id === 'message-1' ? 'Shared history is read-only' : undefined)
+  }
+  const { rerender } = render(<MessageHeader message={createMessage()} />)
+  expect(screen.getByLabelText('Shared history is read-only')).toHaveTextContent('Shared history')
+  rerender(<MessageHeader message={createMessage('assistant', { id: 'independent' })} />)
+  expect(screen.queryByLabelText('Shared history is read-only')).not.toBeInTheDocument()
 })

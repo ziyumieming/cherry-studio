@@ -20,6 +20,7 @@ import {
 import type { ChatConversationControlsSnapshot } from '@renderer/components/composer/variants/ChatComposer'
 import PromptPopup from '@renderer/components/popups/PromptPopup'
 import { useClearTopicMessages } from '@renderer/hooks/chat/useClearTopicMessages'
+import { useTopicHistoryProtection } from '@renderer/hooks/chat/useTopicHistoryProtection'
 import { useCommandHandler } from '@renderer/hooks/command'
 import { useIsActiveTab } from '@renderer/hooks/tab'
 import { useAssistant } from '@renderer/hooks/useAssistant'
@@ -101,6 +102,7 @@ const Chat: FC<Props> = (props) => {
   const isActiveTab = useIsActiveTab()
   const showConversationChrome = !centerSurface
   const activeTopicId = activeTopic?.id
+  const historyProtection = useTopicHistoryProtection(activeTopicId)
   const citationPanelCitations =
     citationPanelState && citationPanelState.topicId === activeTopicId ? citationPanelState.citations : null
   const assistantContext = useAssistant(activeTopic?.assistantId, {
@@ -168,6 +170,12 @@ const Chat: FC<Props> = (props) => {
     'topic.clear_messages',
     async () => {
       if (!activeTopic) return
+      if (!historyProtection.data || historyProtection.data.lockedMessageIds.length > 0) {
+        toast.warning(
+          t(historyProtection.data ? 'message.shared_history.explanation' : 'message.shared_history.checking')
+        )
+        return
+      }
       const confirmed = await popup.confirm({
         title: t('chat.input.clear.title'),
         content: t('chat.input.clear.content'),

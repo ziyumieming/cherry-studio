@@ -126,7 +126,7 @@ export class TopicService {
   notifyReadModelChange(
     topicIds: readonly string[],
     kind: 'membership' | 'projection',
-    options: { deleted?: boolean } = {}
+    options: { deleted?: boolean; additionalEffects?: DataApiDataChangeEffect[] } = {}
   ): void {
     if (topicIds.length === 0) return
     const entityIds = [...new Set(topicIds)]
@@ -141,7 +141,8 @@ export class TopicService {
       { endpoint: '/topics', kind, entityIds },
       { endpoint: '/topics', kind: 'order', dimension: 'lastActivityAt', entityIds },
       ...byIdEffects,
-      { endpoint: '/topics/latest' }
+      { endpoint: '/topics/latest' },
+      ...(options.additionalEffects ?? [])
     ])
   }
 
@@ -371,7 +372,12 @@ export class TopicService {
 
       return rowToTopic(updatedTopicRow)
     })
-    this.notifyReadModelChange([copiedTopic.id], 'membership')
+    this.notifyReadModelChange([copiedTopic.id], 'membership', {
+      additionalEffects: [sourceTopicId, copiedTopic.id].map((topicId) => ({
+        endpoint: '/topics/:topicId/history-protection',
+        routeParams: { topicId }
+      }))
+    })
 
     logger.info('Duplicated topic path into new topic', {
       sourceTopicId,

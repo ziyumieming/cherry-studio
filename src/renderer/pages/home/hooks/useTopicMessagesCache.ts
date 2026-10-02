@@ -75,7 +75,7 @@ export function getTopicBranchCachePaths(topicId: string) {
 
 export function useTopicMessagesCache({ topicId, mutate }: UseTopicMessagesCacheParams) {
   const [messagesCachePath, treeCachePath] = getTopicBranchCachePaths(topicId)
-  const branchCachePaths = [messagesCachePath, treeCachePath]
+  const branchCachePaths = [messagesCachePath, treeCachePath, `/topics/${topicId}/history-protection` as const]
 
   /**
    * Apply a transform to every page's `items` — suits delete / edit / patch

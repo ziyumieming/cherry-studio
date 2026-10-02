@@ -8,6 +8,8 @@ const invalidateCachedMessageUiStates = vi.hoisted(() => vi.fn())
 
 vi.mock('@renderer/services/messageUiStateCache', () => ({ invalidateCachedMessageUiStates }))
 
+import { mockDataApiService } from '@test-mocks/renderer/DataApiService'
+
 import { useClearTopicMessages } from '../useClearTopicMessages'
 
 beforeEach(() => {
@@ -36,4 +38,14 @@ it('clears the requested topic, refreshes its read models, and discards deleted-
 
   expect(clearTrigger).toHaveBeenCalledExactlyOnceWith({ params: { topicId: 'topic-b' } })
   expect(invalidateCachedMessageUiStates).toHaveBeenCalledExactlyOnceWith(['message-b'])
+})
+
+it('rejects clearing shared history before deletion or UI-state invalidation', async () => {
+  mockDataApiService.get.mockResolvedValueOnce({ lockedMessageIds: ['ancestor'] })
+  const clearTrigger = vi.fn()
+  MockUseDataApiUtils.mockMutationWithTrigger('DELETE', '/topics/:topicId/messages', clearTrigger)
+  const { result } = renderHook(() => useClearTopicMessages())
+  await expect(result.current('shared')).rejects.toThrow()
+  expect(clearTrigger).not.toHaveBeenCalled()
+  expect(invalidateCachedMessageUiStates).not.toHaveBeenCalled()
 })

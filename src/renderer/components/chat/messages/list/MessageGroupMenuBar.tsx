@@ -65,7 +65,10 @@ const MessageGroupMenuBar: FC<Props> = ({
   const groupMessageIds = messages.map((message) => message.id)
 
   const deleteAvailability = groupMessageIds
-    .map((messageId) => actions.getMessageDeleteAvailability?.(messageId))
+    .map(
+      (messageId) =>
+        actions.getMessageGroupDeleteAvailability?.(messageId) ?? actions.getMessageDeleteAvailability?.(messageId)
+    )
     .find((availability) => availability?.enabled === false)
   const isDeleteDisabled = deleteAvailability?.enabled === false
   const deleteDisabledReason =
@@ -86,7 +89,13 @@ const MessageGroupMenuBar: FC<Props> = ({
   const hasFailedMessages =
     !!actions.regenerateMessage && messages.some((m) => isFailedMessage(m) && m.status !== 'pending')
 
+  const retryDisabledReason = messages
+    .filter((m) => isFailedMessage(m) && m.status !== 'pending')
+    .map((m) => actions.getMessageMutationUnavailableReason?.(m.id, 'regenerate'))
+    .find(Boolean)
+
   const handleRetryAll = async () => {
+    if (retryDisabledReason) return
     const retryableMessages = messages.filter((m) => isFailedMessage(m) && m.status !== 'pending')
     const { candidates, skippedCount } = selectRetryCandidates(retryableMessages, selectMessageId)
     let failedCount = 0
@@ -155,11 +164,12 @@ const MessageGroupMenuBar: FC<Props> = ({
       </RowFlex>
       <ActionContainer>
         {hasFailedMessages && (
-          <Tooltip content={t('message.group.retry_failed')} delay={600}>
+          <Tooltip content={retryDisabledReason ?? t('message.group.retry_failed')} delay={600}>
             <Button
               variant="ghost"
               size="sm"
               aria-label={t('message.group.retry_failed')}
+              disabled={!!retryDisabledReason}
               onClick={handleRetryAll}
               className="size-7 min-w-7 p-0">
               <RotateCcw size={14} />
@@ -171,6 +181,7 @@ const MessageGroupMenuBar: FC<Props> = ({
             <Button
               variant="ghost"
               size="sm"
+              aria-label={t('common.delete')}
               disabled={isDeleteDisabled}
               onClick={handleDeleteGroup}
               className="size-7 min-w-7 p-0">

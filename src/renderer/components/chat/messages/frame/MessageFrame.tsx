@@ -32,7 +32,7 @@ import MessageAttachments from './MessageAttachments'
 import MessageAvatar from './MessageAvatar'
 import MessageContent from './MessageContent'
 import MessageErrorBoundary from './MessageErrorBoundary'
-import MessageHeader, { AgentSessionDeliveryBadge } from './MessageHeader'
+import MessageHeader, { AgentSessionDeliveryBadge, MessageHistoryProtectionBadge } from './MessageHeader'
 import MessageMenuBar from './MessageMenuBar'
 
 const USER_MESSAGE_FOOTER_ACTIONS_CLASS =
@@ -94,9 +94,11 @@ const MessageItemContent: FC<Omit<Props, 'messageParts'>> = ({
   const canEditMessage = !!actions.editMessage
   const isAssistantMessage = message.role === 'assistant'
   const isTranslating = messageUi.isMessageTranslating?.(message.id) ?? false
+  const editingUnavailableReason = actions.getMessageMutationUnavailableReason?.(message.id, 'edit')
   const canStartEditing =
-    actions.canEditMessage?.(message) ??
-    (canEditMessage && (!isAssistantMessage || (canEditAssistantMessageParts(messageParts) && !isTranslating)))
+    !editingUnavailableReason &&
+    (actions.canEditMessage?.(message) ??
+      (canEditMessage && (!isAssistantMessage || (canEditAssistantMessageParts(messageParts) && !isTranslating))))
   const isEditing = editingMessageId === message.id
   const handleStartEditing = useCallback(
     (messageId: string) => {
@@ -237,7 +239,7 @@ const MessageItemContent: FC<Omit<Props, 'messageParts'>> = ({
           isGrouped={isGrouped}
           isProcessing={isProcessing}
           messageContainerRef={messageContainerRef as React.RefObject<HTMLDivElement>}
-          onStartEditing={canStartEditing ? handleStartEditing : undefined}
+          onStartEditing={canStartEditing || editingUnavailableReason ? handleStartEditing : undefined}
           onSelectContext={onSelectContext}
           variant="header"
         />
@@ -264,7 +266,7 @@ const MessageItemContent: FC<Omit<Props, 'messageParts'>> = ({
           isGrouped={isGrouped}
           isProcessing={isProcessing}
           messageContainerRef={messageContainerRef as React.RefObject<HTMLDivElement>}
-          onStartEditing={canStartEditing ? handleStartEditing : undefined}
+          onStartEditing={canStartEditing || editingUnavailableReason ? handleStartEditing : undefined}
           onMenuOpenChange={setIsMessageMenuOpen}
           onSelectContext={onSelectContext}
         />
@@ -295,7 +297,7 @@ const MessageItemContent: FC<Omit<Props, 'messageParts'>> = ({
           isGrouped={isGrouped}
           isProcessing={isProcessing}
           messageContainerRef={messageContainerRef as React.RefObject<HTMLDivElement>}
-          onStartEditing={canStartEditing ? handleStartEditing : undefined}
+          onStartEditing={canStartEditing || editingUnavailableReason ? handleStartEditing : undefined}
           onSelectContext={onSelectContext}
           messageFont={messageFont}
           fontSize={fontSize}
@@ -361,11 +363,17 @@ const UserBubbleMessage = ({
   }, [actions])
   const messageParts = useMessageParts(message.id)
   const attachments = getHoistedAttachments(messageParts, message)
+  const readOnlyReason = actions.getMessageReadOnlyReason?.(message.id)
 
   return (
     <div className="flex w-full flex-col items-end">
       <div className="flex max-w-[calc(100%-2.5rem)] items-start justify-end gap-2.5 has-[.code-block]:w-full">
         <div className="flex min-w-0 flex-1 flex-col items-end">
+          {readOnlyReason && (
+            <div className="mb-1">
+              <MessageHistoryProtectionBadge reason={readOnlyReason} />
+            </div>
+          )}
           {message.delivery && (
             <div className="mb-1 max-w-full">
               <AgentSessionDeliveryBadge delivery={message.delivery} />

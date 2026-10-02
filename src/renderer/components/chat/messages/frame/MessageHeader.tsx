@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { ArrowUpRight, Bot, MousePointerClick, Sparkle, Target } from 'lucide-react'
+import { ArrowUpRight, Bot, LockKeyhole, MousePointerClick, Sparkle, Target } from 'lucide-react'
 import type { FC, ReactNode } from 'react'
 import { memo, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -96,6 +96,18 @@ export const AgentSessionDeliveryBadge: FC<{
   )
 }
 
+export const MessageHistoryProtectionBadge: FC<{ reason: string }> = ({ reason }) => {
+  const { t } = useTranslation()
+  return (
+    <Tooltip content={reason}>
+      <span aria-label={reason} className="flex shrink-0 items-center gap-1 text-foreground-tertiary text-xs">
+        <LockKeyhole aria-hidden="true" className="size-3.5" />
+        {t('message.shared_history.label')}
+      </span>
+    </Tooltip>
+  )
+}
+
 const MessageHeader: FC<Props> = memo(
   ({ model, message, isGroupContextMessage, showModelIdentity = false, actionsSlot, contentSlot, footerSlot }) => {
     const { theme } = useTheme()
@@ -106,6 +118,7 @@ const MessageHeader: FC<Props> = memo(
     const userName = renderConfig.userName
     const assistantProfile = meta.assistantProfile
     const { t } = useTranslation()
+    const readOnlyReason = actions.getMessageReadOnlyReason?.(message.id)
     const messageStyle = renderConfig.messageStyle
     const isBubbleStyle = messageStyle === 'bubble'
     const userAvatar = meta.userProfile?.avatar ?? ''
@@ -185,6 +198,7 @@ const MessageHeader: FC<Props> = memo(
               }}>
               {username}
             </span>
+            {readOnlyReason && <MessageHistoryProtectionBadge reason={readOnlyReason} />}
             {!isAssistantMessage && delivery && <AgentSessionDeliveryBadge delivery={delivery} />}
             {isAssistantMessage && message.turnOrigin && <AutonomousTurnOriginBadge origin={message.turnOrigin} />}
             {isAssistantMessage && showModelIdentity && displayModelName && (

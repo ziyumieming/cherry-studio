@@ -121,9 +121,19 @@ function toolbarAvailability(
 ) {
   return (context: MessageMenuBarActionContext): ActionAvailabilityInput => {
     const visible = isVisible(context)
+    const operation =
+      id === 'user-edit'
+        ? 'edit'
+        : id === 'assistant-regenerate' || id === 'assistant-mention-model'
+          ? 'regenerate'
+          : undefined
+    const reason = operation
+      ? context.actions.getMessageMutationUnavailableReason?.(context.message.id, operation)
+      : undefined
     return {
       visible,
-      enabled: visible && !(context.isProcessing && STREAMING_DISABLED_BUTTON_IDS.has(id))
+      enabled: visible && !reason && !(context.isProcessing && STREAMING_DISABLED_BUTTON_IDS.has(id)),
+      reason
     }
   }
 }
@@ -395,7 +405,9 @@ registerToolbarAction({
       visible,
       enabled:
         visible &&
-        (context.isTranslating ? canAbortTranslation : canTranslate || canCopyTranslation || canRemoveTranslation)
+        !context.actions.getMessageMutationUnavailableReason?.(context.message.id, 'edit') &&
+        (context.isTranslating ? canAbortTranslation : canTranslate || canCopyTranslation || canRemoveTranslation),
+      reason: context.actions.getMessageMutationUnavailableReason?.(context.message.id, 'edit')
     }
   }
 })
@@ -468,8 +480,12 @@ registerAction({
   group: 'write',
   order: 10,
   surface: 'menu',
-  availability: (context) =>
-    context.isEditable && (context.isUserMessage || context.isAssistantMessage) && canStartEditing(context)
+  availability: (context) => {
+    const visible =
+      context.isEditable && (context.isUserMessage || context.isAssistantMessage) && canStartEditing(context)
+    const reason = context.actions.getMessageMutationUnavailableReason?.(context.message.id, 'edit')
+    return { visible, enabled: visible && !reason, reason }
+  }
 })
 
 registerAction({

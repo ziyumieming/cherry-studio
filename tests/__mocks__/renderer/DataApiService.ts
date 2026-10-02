@@ -22,6 +22,15 @@ interface RetryOptions {
  * Provides realistic mock responses for common API endpoints
  */
 function getMockDataForPath(path: ConcreteApiPaths, method: string): any {
+  if (path.endsWith('/history-protection')) {
+    return {
+      lockedMessageIds: [],
+      deleteBlockedMessageIds: [],
+      replyGroupDeleteBlockedMessageIds: [],
+      regenerateBlockedMessageIds: []
+    }
+  }
+
   // Parse path to determine data type
   if (path.includes('/topics')) {
     if (method === 'GET' && path.endsWith('/topics')) {
