@@ -1390,14 +1390,22 @@ describe('ChatContent', () => {
       'PATCH',
       '/messages/:id',
       expect.objectContaining({
-        refresh: ['/topics/topic-1/messages', '/topics/topic-1/tree']
+        refresh: expect.arrayContaining([
+          '/topics/topic-1/messages',
+          '/topics/topic-1/tree',
+          '/topics/topic-1/history-protection'
+        ])
       })
     )
     expect(mockUseMutation).toHaveBeenCalledWith(
       'POST',
       '/messages/:id/siblings',
       expect.objectContaining({
-        refresh: ['/topics/topic-1/messages', '/topics/topic-1/tree']
+        refresh: expect.arrayContaining([
+          '/topics/topic-1/messages',
+          '/topics/topic-1/tree',
+          '/topics/topic-1/history-protection'
+        ])
       })
     )
   })
