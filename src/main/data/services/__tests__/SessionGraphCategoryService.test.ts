@@ -198,7 +198,11 @@ describe('SessionGraphCategoryService', () => {
       service.setTopicCategories('topic', [category.id])
       expect(notifyDataApiDataChange).toHaveBeenLastCalledWith(
         expect.arrayContaining([
-          { endpoint: '/topics/:topicId/session-graph-categories', routeParams: { topicId: 'topic' } },
+          {
+            endpoint: '/topics/:topicId/session-graph-categories',
+            kind: 'membership',
+            routeParams: { topicId: 'topic' }
+          },
           { endpoint: '/session-graph/categories/:id/topics' }
         ])
       )
@@ -206,6 +210,29 @@ describe('SessionGraphCategoryService', () => {
       vi.mocked(notifyDataApiDataChange).mockReset()
       observer.close()
     }
+  })
+
+  it('distinguishes category membership from renamed paths and alphabetical order changes', () => {
+    const category = service.create({ name: 'Networks' })
+    expect(notifyDataApiDataChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([{ endpoint: '/session-graph/categories', kind: 'membership' }])
+    )
+    service.update(category.id, { name: 'Computer Networks' })
+    expect(notifyDataApiDataChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        { endpoint: '/session-graph/categories', kind: 'projection' },
+        { endpoint: '/session-graph/categories', kind: 'order', dimension: 'name' },
+        { endpoint: '/topics/:topicId/session-graph-categories', kind: 'projection' },
+        { endpoint: '/topics/:topicId/session-graph-categories', kind: 'order', dimension: 'name' }
+      ])
+    )
+    service.update(category.id, { color: '#123456' })
+    const effects = vi.mocked(notifyDataApiDataChange).mock.lastCall![0]
+    expect(effects.some((effect) => effect.kind === 'order' || effect.kind === 'membership')).toBe(false)
+    service.delete(category.id)
+    expect(notifyDataApiDataChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([{ endpoint: '/session-graph/categories', kind: 'membership' }])
+    )
   })
 
   it('retains stable category paths and multi-category bindings in a restored SQLite snapshot', () => {

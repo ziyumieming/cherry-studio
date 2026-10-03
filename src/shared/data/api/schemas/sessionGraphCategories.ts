@@ -6,6 +6,8 @@ import {
   type SessionGraphCategory
 } from '../../types/sessionGraphCategory'
 
+export const SESSION_GRAPH_CATEGORY_ORDER = 'name'
+
 export const CreateSessionGraphCategorySchema = SessionGraphCategorySchema.pick({
   name: true,
   color: true,
@@ -39,7 +41,7 @@ export type SessionGraphCategorySchemas = {
     DELETE: { params: { id: string }; response: void }
   }
   '/session-graph/categories/:id/topics': {
-    GET: { params: { id: string }; query?: { includeDescendants?: boolean }; response: { topicIds: string[] } }
+    GET: { params: { id: string }; query: { includeDescendants?: boolean }; response: { topicIds: string[] } }
   }
   '/topics/:topicId/session-graph-categories': {
     GET: { params: { topicId: string }; response: SessionGraphCategory[] }

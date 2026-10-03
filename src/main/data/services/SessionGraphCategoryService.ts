@@ -15,6 +15,8 @@ import type {
   CreateSessionGraphCategoryDto,
   UpdateSessionGraphCategoryDto
 } from '@shared/data/api/schemas/sessionGraphCategories'
+import { SESSION_GRAPH_CATEGORY_ORDER } from '@shared/data/api/schemas/sessionGraphCategories'
+import type { DataApiDataChangeEffect } from '@shared/data/api/types'
 import type { SessionGraphCategory } from '@shared/data/types/sessionGraphCategory'
 
 import { timestampToISO } from './utils/rowMappers'
@@ -49,12 +51,22 @@ function categories(rows: SessionGraphCategoryRow[]): SessionGraphCategory[] {
   }))
 }
 
-function notifyCategoriesChanged(): void {
-  notifyDataApiDataChange([
-    { endpoint: '/session-graph/categories' },
-    { endpoint: '/session-graph/categories/:id/topics' },
-    { endpoint: '/topics/:topicId/session-graph-categories' }
-  ])
+function notifyCategoriesChanged(kind: 'membership' | 'projection', orderChanged = false): void {
+  const effects: DataApiDataChangeEffect[] = [
+    { endpoint: '/session-graph/categories', kind },
+    { endpoint: '/session-graph/categories/:id/topics' }
+  ]
+  if (kind === 'projection') {
+    // Paths embedded in topic categories can change for every descendant.
+    effects.push({ endpoint: '/topics/:topicId/session-graph-categories', kind: 'projection' })
+  }
+  if (orderChanged) {
+    effects.push(
+      { endpoint: '/session-graph/categories', kind: 'order', dimension: SESSION_GRAPH_CATEGORY_ORDER },
+      { endpoint: '/topics/:topicId/session-graph-categories', kind: 'order', dimension: SESSION_GRAPH_CATEGORY_ORDER }
+    )
+  }
+  notifyDataApiDataChange(effects)
 }
 
 export class SessionGraphCategoryService {
@@ -114,7 +126,7 @@ export class SessionGraphCategoryService {
       )
       return categories(this.rows(tx)).find((item) => item.id === row.id)!
     })
-    notifyCategoriesChanged()
+    notifyCategoriesChanged('membership')
     return result
   }
 
@@ -143,7 +155,7 @@ export class SessionGraphCategoryService {
       }
       return categories(this.rows(tx)).find((item) => item.id === id)!
     })
-    notifyCategoriesChanged()
+    notifyCategoriesChanged('projection', dto.name !== undefined)
     return result
   }
 
@@ -173,7 +185,7 @@ export class SessionGraphCategoryService {
         foreignKey: blocked
       })
     })
-    notifyCategoriesChanged()
+    notifyCategoriesChanged('membership')
   }
 
   getTopicCategories(topicId: string): SessionGraphCategory[] {
@@ -201,7 +213,7 @@ export class SessionGraphCategoryService {
           .run()
     })
     notifyDataApiDataChange([
-      { endpoint: '/topics/:topicId/session-graph-categories', routeParams: { topicId } },
+      { endpoint: '/topics/:topicId/session-graph-categories', kind: 'membership', routeParams: { topicId } },
       { endpoint: '/session-graph/categories/:id/topics' }
     ])
   }

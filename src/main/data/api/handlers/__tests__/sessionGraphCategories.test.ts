@@ -5,6 +5,12 @@ import { sessionGraphCategoryHandlers as handlers } from '@data/api/handlers/ses
 import { topicTable } from '@data/db/schemas/topic'
 import { sessionGraphCategoryService } from '@data/services/SessionGraphCategoryService'
 import { CategoryTopicsQuerySchema } from '@shared/data/api/schemas/sessionGraphCategories'
+import { type HandlerResult, isCustomStatusResult } from '@shared/data/api/types'
+import type { SessionGraphCategory } from '@shared/data/types/sessionGraphCategory'
+
+function categoryData(result: HandlerResult<SessionGraphCategory>): SessionGraphCategory {
+  return isCustomStatusResult<SessionGraphCategory>(result) ? result.data : result
+}
 
 vi.mock('@data/dataApiDataChange', () => ({ notifyDataApiDataChange: vi.fn() }))
 
@@ -12,10 +18,12 @@ describe('Session graph category API validation and persistence', () => {
   const dbh = setupTestDatabase()
   it('normalizes category names, supports null parent/color and persists topic assignments', async () => {
     dbh.db.insert(topicTable).values({ id: 'topic', orderKey: 'a0' }).run()
-    const root = await handlers['/session-graph/categories'].POST({ body: { name: '  Networks  ' } })
-    const leaf = await handlers['/session-graph/categories'].POST({
-      body: { name: ' VXLAN ', parentId: root.id, color: '#123456' }
-    })
+    const root = categoryData(await handlers['/session-graph/categories'].POST({ body: { name: '  Networks  ' } }))
+    const leaf = categoryData(
+      await handlers['/session-graph/categories'].POST({
+        body: { name: ' VXLAN ', parentId: root.id, color: '#123456' }
+      })
+    )
     await handlers['/topics/:topicId/session-graph-categories'].PUT({
       params: { topicId: 'topic' },
       body: { categoryIds: [leaf.id] }
@@ -23,7 +31,7 @@ describe('Session graph category API validation and persistence', () => {
     expect(await handlers['/topics/:topicId/session-graph-categories'].GET({ params: { topicId: 'topic' } })).toEqual([
       leaf
     ])
-    expect(await handlers['/session-graph/categories/:id/topics'].GET({ params: { id: root.id } })).toEqual({
+    expect(await handlers['/session-graph/categories/:id/topics'].GET({ params: { id: root.id }, query: {} })).toEqual({
       topicIds: []
     })
     expect(
@@ -41,7 +49,7 @@ describe('Session graph category API validation and persistence', () => {
   })
   it('rejects invalid input at the boundary and preserves the category tree and bindings', async () => {
     dbh.db.insert(topicTable).values({ id: 'topic', orderKey: 'a0' }).run()
-    const root = await handlers['/session-graph/categories'].POST({ body: { name: 'Root' } })
+    const root = categoryData(await handlers['/session-graph/categories'].POST({ body: { name: 'Root' } }))
     for (const body of [
       { name: '' },
       { name: '   ' },
@@ -65,7 +73,7 @@ describe('Session graph category API validation and persistence', () => {
     expect(sessionGraphCategoryService.getTopicCategories('topic')).toEqual([])
   })
   it('treats empty or explicitly undefined optional patches as no-ops', async () => {
-    const root = await handlers['/session-graph/categories'].POST({ body: { name: 'Root' } })
+    const root = categoryData(await handlers['/session-graph/categories'].POST({ body: { name: 'Root' } }))
     for (const body of [{}, { name: undefined, parentId: undefined, color: undefined }]) {
       expect(await handlers['/session-graph/categories/:id'].PATCH({ params: { id: root.id }, body })).toEqual(root)
     }
