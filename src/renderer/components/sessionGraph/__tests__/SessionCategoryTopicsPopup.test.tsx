@@ -165,7 +165,9 @@ describe('Category conversation browsing', () => {
     expect(await screen.findByText('No conversations match this category and search.')).toBeInTheDocument()
     const topicRequests = mockDataApiService.get.mock.calls.filter(([path]) => path === '/topics')
     expect(
-      topicRequests.every(([, options]) => (options?.query as ListTopicsQuery).sessionGraphCategoryId === rootId)
+      topicRequests.every(
+        ([, options]) => (options?.query as ListTopicsQuery | undefined)?.sessionGraphCategoryId === rootId
+      )
     ).toBe(true)
   })
 
