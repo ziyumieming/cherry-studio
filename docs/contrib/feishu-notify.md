@@ -3,6 +3,7 @@ description: CLI script that sends Feishu webhook card notifications from GitHub
 sources:
   - scripts/feishu-notify.ts
   - .github/workflows/github-issue-tracker.yml
+  - .github/workflows/ci.yml
 ---
 
 # Feishu Notification Script
@@ -37,6 +38,20 @@ pnpm tsx scripts/feishu-notify.ts [command] [options]
 |----------|-------------|
 | `FEISHU_WEBHOOK_URL` | Feishu Webhook URL |
 | `FEISHU_WEBHOOK_SECRET` | Feishu Webhook signing secret |
+
+### CI failure notifications
+
+The `CI` workflow sends failure notifications only when the repository variable
+`ENABLE_FEISHU_NOTIFY` equals `true`. An unset variable or a value that does not
+compare equal to `true` disables the notification job; all CI checks still run.
+GitHub Actions string comparisons are case-insensitive, so `TRUE` also enables it.
+Use the lowercase value `true` when configuring the variable.
+
+To enable notifications, also configure the repository Actions secrets
+`FEISHU_WEBHOOK_URL` and `FEISHU_WEBHOOK_SECRET`. Notifications remain limited to
+failed checks after a push to `main`. Missing credentials fail the notification
+script; omitting credentials is not a substitute for disabling the switch.
+This switch applies only to the `CI` workflow, not other callers of the script.
 
 ## Commands
 
