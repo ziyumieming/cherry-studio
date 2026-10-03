@@ -9,7 +9,7 @@ sources:
 
 # Session graph development in this fork
 
-This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. Product decisions and open interaction questions are tracked in the workspace's `ROADMAP.md`, `REVIEW_QUEUE.md`, and `USER_NOTES.md` outside this repository.
+This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. Product decisions and open interaction questions are tracked in GitHub Issues. The workspace's `ROADMAP.md` records progress; `REVIEW_QUEUE.md` and `USER_NOTES.md` remain historical records.
 
 ## Repository and review workflow
 
@@ -33,7 +33,7 @@ This fork adds an opt-in organization layer to ordinary Cherry Studio topic chat
 | 7. Organization | Move primary ownership while preserving other references | Enforce an acyclic primary forest |
 | 8. Graph overview | Visualize the forest and additional references | After everyday navigation works |
 
-Slices may be subdivided when a PR would otherwise become hard to review. Unconfirmed interaction choices stay in the workspace review queue; they are resolved before their dependent slice. Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic.
+Slices may be subdivided when a PR would otherwise become hard to review. Unconfirmed interaction choices stay in GitHub Issues; they are resolved before their dependent slice. Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic.
 
 ## Shared history protection
 
@@ -74,11 +74,19 @@ The same dialog creates, renames, moves and deletes categories. These changes sa
 
 The dialog revalidates category paths and assignments on committed DataApi notifications. Local selections survive refresh, with deleted category IDs removed. Reads that fail or have not loaded disable editing and saving; mutation failures preserve the draft for retry. Switching to another topic does not reuse the previous topic's fetched assignments.
 
-No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Fork category inheritance and category-based target-topic navigation remain separate implementation slices; this dialog does not yet provide them.
+No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Category-based target-topic navigation remains a separate implementation slice.
+
+### Categories when forking
+
+Duplicating a completed conversation path inherits all category IDs currently assigned to the source topic. This includes forks from an earlier turn: assignments belong to the whole topic, not the copied message position. No categories or child categories are created automatically. An unclassified source remains unclassified.
+
+The inherited assignments are independent memberships. Open **Session categories** in either topic to select or create finer categories explicitly; changing one topic's assignments does not change the other. A subsequent fork inherits its immediate source's current assignments. Category IDs and their shared hierarchy remain stable, so renaming or moving a category still updates its path everywhere it is assigned.
+
+Membership copying runs through the category-owning service inside the existing topic duplication transaction. A failed insert rolls back the new topic, copied history, logical identities and shared-history locks together. Category assignment and candidate-topic refresh effects are published only after commit. This needs no migration, new endpoint or backup path; existing empty-path and pending-generation guards continue to apply.
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. The owner confirmed that a fork should inherit its source category assignments, with finer categories selected or created explicitly; it must not automatically generate children for every assigned category. Implementing this inheritance is the next fork integration slice before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based target selection is the next integration slice before exploration tasks.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 

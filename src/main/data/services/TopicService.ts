@@ -34,6 +34,7 @@ import type { Topic } from '@shared/data/types/topic'
 
 import { getDataService, registerDataService } from './dataServiceRegistry'
 import { pinService } from './PinService'
+import { sessionGraphCategoryService } from './SessionGraphCategoryService'
 import { sessionGraphIdentityService } from './SessionGraphIdentityService'
 import { sessionGraphProtectionService } from './SessionGraphProtectionService'
 import { tagService } from './TagService'
@@ -359,7 +360,10 @@ export class TopicService {
       sessionGraphIdentityService.mapCopiedPathTx(tx, sourcePathRows, copiedMessageIds)
       sessionGraphProtectionService.lockCopiedPathTx(tx, copiedMessageIds)
 
-      // Intentionally copies only topic metadata, root-to-node messages, and chat-message file refs.
+      // Snapshot the source's current category IDs; later refinement belongs to each topic independently.
+      sessionGraphCategoryService.copyTopicCategoriesTx(tx, sourceTopicId, newTopicRow.id)
+
+      // Intentionally copies only topic metadata, session categories, root-to-node messages, and chat-message file refs.
       // Pins, tags, trace links, and pruned siblings/descendants stay with their original rows.
       copyChatMessageFileRefsBySourceIdMapTx(tx, copiedMessageIds)
 
@@ -373,10 +377,18 @@ export class TopicService {
       return rowToTopic(updatedTopicRow)
     })
     this.notifyReadModelChange([copiedTopic.id], 'membership', {
-      additionalEffects: [sourceTopicId, copiedTopic.id].map((topicId) => ({
-        endpoint: '/topics/:topicId/history-protection',
-        routeParams: { topicId }
-      }))
+      additionalEffects: [
+        ...[sourceTopicId, copiedTopic.id].map((topicId) => ({
+          endpoint: '/topics/:topicId/history-protection' as const,
+          routeParams: { topicId }
+        })),
+        {
+          endpoint: '/topics/:topicId/session-graph-categories',
+          kind: 'membership',
+          routeParams: { topicId: copiedTopic.id }
+        },
+        { endpoint: '/session-graph/categories/:id/topics' }
+      ]
     })
 
     logger.info('Duplicated topic path into new topic', {
