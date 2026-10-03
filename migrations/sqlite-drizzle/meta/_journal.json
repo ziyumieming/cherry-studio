@@ -203,6 +203,13 @@
       "when": 1790936516830,
       "tag": "0028_session_graph_ancestor_lock",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1790955335823,
+      "tag": "0029_session_graph_categories",
+      "breakpoints": true
     }
   ],
   "version": "7"

@@ -53,6 +53,7 @@ describe('endpoint classification', () => {
       | '/prompts/:id/bindings'
       | '/providers'
       | '/providers/:providerId/models:resolve'
+      | '/session-graph/categories'
       | '/skills'
       | '/tags'
       | '/tags/entities/:entityType/:entityId'
@@ -60,6 +61,7 @@ describe('endpoint classification', () => {
       | '/topics'
       | '/topics/:topicId/messages'
       | '/topics/:topicId/path'
+      | '/topics/:topicId/session-graph-categories'
       | '/translate/histories'
       | '/translate/languages'
       | '/ai-usage-records'
@@ -74,6 +76,7 @@ describe('endpoint classification', () => {
     expectTypeOf<'/search/entities'>().toExtend<ScalarGetPaths>()
     expectTypeOf<'/topics/:topicId/tree'>().toExtend<ScalarGetPaths>()
     expectTypeOf<'/agent-tasks/:taskId'>().toExtend<ScalarGetPaths>()
+    expectTypeOf<'/session-graph/categories/:id/topics'>().toExtend<ScalarGetPaths>()
   })
 
   it('rejects paths without a GET read model as notification targets', () => {

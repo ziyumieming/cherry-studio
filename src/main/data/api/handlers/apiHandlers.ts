@@ -38,6 +38,7 @@ import { pinHandlers } from './pins'
 import { promptHandlers } from './prompts'
 import { providerHandlers } from './providers'
 import { searchHandlers } from './search'
+import { sessionGraphCategoryHandlers } from './sessionGraphCategories'
 import { skillHandlers } from './skills'
 import { tagHandlers } from './tags'
 import { temporaryChatHandlers } from './temporaryChats'
@@ -75,6 +76,7 @@ export const apiHandlers: ApiImplementation = {
   ...miniAppHandlers,
   ...noteHandlers,
   ...tagHandlers,
+  ...sessionGraphCategoryHandlers,
   ...groupHandlers,
   ...pinHandlers,
   ...promptHandlers,
