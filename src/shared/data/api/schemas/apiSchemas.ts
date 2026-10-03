@@ -44,6 +44,7 @@ import type { PinSchemas } from './pins'
 import type { PromptSchemas } from './prompts'
 import type { ProviderSchemas } from './providers'
 import type { SearchSchemas } from './search'
+import type { SessionGraphCategorySchemas } from './sessionGraphCategories'
 import type { SkillSchemas } from './skills'
 import type { TagSchemas } from './tags'
 import type { TemporaryChatSchemas } from './temporaryChats'
@@ -80,6 +81,7 @@ export type ApiSchemas = AssertValidSchemas<
     ArchiveSchemas &
     AssistantSchemas &
     TagSchemas &
+    SessionGraphCategorySchemas &
     PromptSchemas &
     GroupSchemas &
     PinSchemas &

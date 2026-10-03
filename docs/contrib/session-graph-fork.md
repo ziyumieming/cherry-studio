@@ -45,9 +45,31 @@ A path containing a pending message cannot be duplicated: a live stream could ot
 Normal regeneration creates additional assistant rows under the existing question, preserving the original answer and its follow-up path. Each new answer can develop its own path within the same topic; it is not a new topic session. Failed-answer retry can instead reset the original row. Shared questions currently prohibit both operations; allowing additional answers later requires an explicit source-answer contract and precise logical answer references.
 
 
+## Session categories
+
+Session categories use two additive tables, `session_graph_category` and `session_graph_topic_category`, in the existing SQLite database. Cherry's general-purpose tags retain globally unique names and are shared by assistants and other resources; changing that contract would affect unrelated features. The owner chose independent session categories so different category paths can reuse a name without changing existing tag APIs or bindings. Category validation reuses the existing name and color schemas.
+
+Category IDs remain stable through renames and moves. Each category has at most one parent; the service checks its ancestor path inside the write transaction and rejects self-parenting or moves below descendants. Foreign keys reject missing parents, a database check rejects direct self-parenting, and unique indexes reject duplicate names among siblings (including root categories). Names are trimmed at the API boundary; uniqueness is case-sensitive. Returned paths contain `{ id, name }` items instead of parsing display strings. Topic membership is many-to-many and refers to IDs, never names or fork positions.
+
+| Endpoint | Contract |
+| --- | --- |
+| `GET /session-graph/categories` | Flat category collection, each with its current complete path |
+| `POST /session-graph/categories` | Create a category; omitted parent means root |
+| `PATCH /session-graph/categories/:id` | Rename, recolor or move; explicit `parentId: null` moves to root |
+| `DELETE /session-graph/categories/:id` | Delete only after child categories and topic bindings have been removed |
+| `GET /session-graph/categories/:id/topics` | Active topic IDs belonging directly to this category; `includeDescendants=true` includes its subtree and deduplicates topics |
+| `GET /topics/:topicId/session-graph-categories` | Assigned categories with complete paths |
+| `PUT /topics/:topicId/session-graph-categories` | Atomically replace up to 100 category assignments; unknown IDs or failed writes preserve all previous assignments |
+
+Soft-deleted topics do not appear in candidate queries and cannot have their categories changed until restored. Their bindings survive trash/restore; physical topic removal cascades only its bindings. Category deletion does not implicitly remove child categories or assignments, including assignments retained for trashed topics. Restore or permanently remove a trashed topic before cleaning up its remaining assignments.
+
+Successful category writes publish read-model refresh effects after commit. Category UI consumers should subscribe to these effects and existing topic membership notifications for trash/restore/permanent deletion, and refetch when mounted. The new tables travel with the existing whole-database backup; snapshot restoration is tested through production migration and service reads. Full backup UI acceptance remains a later desktop check.
+
+This slice exposes storage and DataApi only. It does not introduce a category page, translate generic tags into categories, inherit assignments during fork, or settle the pending automatic-child-category interaction. Category selection and management ship in the next UI slice.
+
 ## Confirmed organization model
 
-Category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history: a multi-label topic does not implicitly clone all its categories when it forks. Category management and selection will ship separately before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history: a multi-label topic does not implicitly clone all its categories when it forks. Category management and selection will ship separately before exploration tasks.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 

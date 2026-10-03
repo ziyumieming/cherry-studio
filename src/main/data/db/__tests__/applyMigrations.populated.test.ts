@@ -70,6 +70,43 @@ describe('applyMigrations over a populated database', () => {
     rmSync(tempDir, { recursive: true, force: true })
   })
 
+  it('adds independent categories without rewriting populated topics, tags, messages or graph locks', () => {
+    sqlite.pragma('foreign_keys = ON')
+    applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline'), '0029_session_graph_categories'))
+    sqlite
+      .prepare(
+        "INSERT INTO topic (id, order_key, created_at, updated_at, last_activity_at) VALUES ('existing', 'a0', 1, 1, 1)"
+      )
+      .run()
+    sqlite
+      .prepare(
+        "INSERT INTO message (id, topic_id, role, data, status, created_at, updated_at) VALUES ('root', 'existing', 'root', '{\"parts\":[]}', 'success', 1, 1)"
+      )
+      .run()
+    sqlite
+      .prepare(
+        "INSERT INTO message (id, topic_id, parent_id, role, data, status, created_at, updated_at) VALUES ('question', 'existing', 'root', 'user', '{\"parts\":[]}', 'success', 1, 1)"
+      )
+      .run()
+    sqlite.prepare("INSERT INTO tag (id, name, created_at, updated_at) VALUES ('old-tag', 'Networking', 1, 1)").run()
+    sqlite
+      .prepare(
+        "INSERT INTO entity_tag (entity_type, entity_id, tag_id, created_at, updated_at) VALUES ('topic', 'existing', 'old-tag', 1, 1)"
+      )
+      .run()
+    sqlite.prepare("INSERT INTO session_graph_ancestor_lock (message_id, locked_at) VALUES ('question', 1)").run()
+    const preserved = ['topic', 'message', 'tag', 'entity_tag', 'session_graph_ancestor_lock']
+    const before = preserved.map((table) => sqlite.prepare(`SELECT * FROM ${table}`).all())
+    applyMigrations(db, resolveMigrationsPath())
+    applyMigrations(db, resolveMigrationsPath())
+    expect(preserved.map((table) => sqlite.prepare(`SELECT * FROM ${table}`).all())).toEqual(before)
+    expect(sqlite.prepare('SELECT * FROM session_graph_category').all()).toEqual([])
+    expect(sqlite.prepare('SELECT * FROM session_graph_topic_category').all()).toEqual([])
+    expect(sqlite.pragma('foreign_key_check')).toEqual([])
+    expect(sqlite.pragma('foreign_keys', { simple: true })).toBe(1)
+    expect(sqlite.pragma('integrity_check', { simple: true })).toBe('ok')
+  })
+
   it('locks existing fork ancestors while preserving uncopied history during migrate-forward', () => {
     sqlite.pragma('foreign_keys = ON')
     applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline'), '0028_session_graph_ancestor_lock'))
