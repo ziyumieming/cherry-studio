@@ -93,12 +93,14 @@ describe('Category-filtered topic candidates', () => {
     topic('target')
     topic('unrelated')
     categories.setTopicCategories('target', [category.id])
-    expect(await topicHandlers['/topics'].GET({ query: { sessionGraphCategoryId: category.id } })).toMatchObject({
+    // Optional handler queries use the existing transport test convention; the Zod schema validates at runtime.
+    expect(
+      await topicHandlers['/topics'].GET({ query: { sessionGraphCategoryId: category.id } } as never)
+    ).toMatchObject({
       items: [{ id: 'target' }]
     })
-    await expect(topicHandlers['/topics'].GET({ query: { sessionGraphCategoryId: 'bad-id' } })).rejects.toHaveProperty(
-      'name',
-      'ZodError'
-    )
+    await expect(
+      topicHandlers['/topics'].GET({ query: { sessionGraphCategoryId: 'bad-id' } } as never)
+    ).rejects.toHaveProperty('name', 'ZodError')
   })
 })

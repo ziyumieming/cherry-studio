@@ -15,8 +15,11 @@ import type { Topic } from '@shared/data/types/topic'
 vi.unmock('@cherrystudio/ui')
 vi.unmock('@data/hooks/useDataApi')
 vi.unmock('react-i18next')
-const navigation = vi.hoisted(() => ({ openConversation: vi.fn() }))
-vi.mock('@renderer/hooks/useConversationNavigation', () => ({ useConversationNavigation: () => navigation }))
+const { navigation, useNavigation } = vi.hoisted(() => {
+  const navigation = { openConversation: vi.fn() }
+  return { navigation, useNavigation: vi.fn(() => navigation) }
+})
+vi.mock('@renderer/hooks/useConversationNavigation', () => ({ useConversationNavigation: useNavigation }))
 
 import { SessionCategoryTopicsDialog, SessionCategoryTopicsPicker } from '../SessionCategoryTopicsPopup'
 
@@ -80,6 +83,7 @@ describe('Category conversation browsing', () => {
   beforeEach(() => {
     MockDataApiUtils.resetMocks()
     navigation.openConversation.mockReset()
+    useNavigation.mockClear()
     categories = [
       category(rootId, 'Networking'),
       category(childId, 'Overview', [{ id: rootId, name: 'Networking' }]),
@@ -208,11 +212,13 @@ describe('Category conversation browsing', () => {
   })
 
   it('opens the revalidated conversation through existing navigation and resolves the dialog', async () => {
+    expect(useNavigation).not.toHaveBeenCalled()
     const user = userEvent.setup()
     const { resolve } = mount(true)
     await user.click(await screen.findByRole('button', { name: 'Networking' }))
     await user.click(await screen.findByRole('button', { name: 'Open Network conversation' }))
     await waitFor(() => expect(navigation.openConversation).toHaveBeenCalledWith('network-topic', 'Current title'))
+    expect(useNavigation).toHaveBeenCalledWith('assistants')
     expect(resolve).toHaveBeenCalledWith({ categoryId: rootId, topic: topic('network-topic', 'Current title') })
   })
 

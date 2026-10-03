@@ -243,7 +243,7 @@ export function SessionCategoryTopicsDialog({
   resolve
 }: PopupInjectedProps<SessionCategoryTopicSelection | null>) {
   const { t } = useTranslation()
-  const navigation = useConversationNavigation('chat')
+  const navigation = useConversationNavigation('assistants')
   const closing = useRef(false)
   const dismiss = () => {
     closing.current = true
