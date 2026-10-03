@@ -12,6 +12,7 @@ import { assistantTable } from '@data/db/schemas/assistant'
 import { chatMessageFileRefTable } from '@data/db/schemas/fileRelations'
 import { messageTable } from '@data/db/schemas/message'
 import { pinTable } from '@data/db/schemas/pin'
+import { sessionGraphTopicCategoryTable } from '@data/db/schemas/sessionGraphCategory'
 import { topicTable } from '@data/db/schemas/topic'
 import type { DbOrTx } from '@data/db/types'
 import { loggerService } from '@logger'
@@ -708,6 +709,24 @@ export class TopicService {
     const cursor = decodePinnedListCursor(query.cursor, 'topic')
     const search = buildSearchPredicate(query.q)
     const idFilter = query.ids ? inArray(topicTable.id, query.ids) : undefined
+    const categoryFilter = query.sessionGraphCategoryId
+      ? inArray(
+          topicTable.id,
+          db
+            .select({ topicId: sessionGraphTopicCategoryTable.topicId })
+            .from(sessionGraphTopicCategoryTable)
+            .where(
+              inArray(
+                sessionGraphTopicCategoryTable.categoryId,
+                sessionGraphCategoryService.getCategoryIdsTx(
+                  db,
+                  query.sessionGraphCategoryId,
+                  query.includeCategoryDescendants
+                )
+              )
+            )
+        )
+      : undefined
     const inTrash = query.inTrash === true
 
     const items: Array<{ topic: Topic; pinOrderKey?: string }> = []
@@ -723,7 +742,7 @@ export class TopicService {
         .select({ topic: topicTable, pinOrderKey: pinTable.orderKey })
         .from(topicTable)
         .innerJoin(pinTable, and(eq(pinTable.entityType, 'topic'), eq(pinTable.entityId, topicTable.id)))
-        .where(and(isNull(topicTable.deletedAt), idFilter, pinAfter, search))
+        .where(and(isNull(topicTable.deletedAt), idFilter, categoryFilter, pinAfter, search))
         .orderBy(asc(pinTable.orderKey), asc(topicTable.id))
         .limit(limit + 1)
         .all()
@@ -781,6 +800,7 @@ export class TopicService {
         and(
           inTrash ? isNotNull(topicTable.deletedAt) : isNull(topicTable.deletedAt),
           idFilter,
+          categoryFilter,
           notInArray(topicTable.id, pinnedSubquery),
           topicAfter,
           search

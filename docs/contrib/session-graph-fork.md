@@ -5,6 +5,7 @@ sources:
   - src/main/data/services/MessageService.ts
   - src/main/data/db/schemas
   - src/renderer/components/sessionGraph/SessionCategoriesPopup.tsx
+  - src/renderer/components/sessionGraph/SessionCategoryTopicsPopup.tsx
 ---
 
 # Session graph development in this fork
@@ -74,7 +75,17 @@ The same dialog creates, renames, moves and deletes categories. These changes sa
 
 The dialog revalidates category paths and assignments on committed DataApi notifications. Local selections survive refresh, with deleted category IDs removed. Reads that fail or have not loaded disable editing and saving; mutation failures preserve the draft for retry. Switching to another topic does not reuse the previous topic's fetched assignments.
 
-No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Category-based target-topic navigation remains a separate implementation slice.
+No new tables or backup paths are needed for this UI. General-purpose tags are unchanged.
+
+### Finding conversations by category
+
+Open **Browse conversations by category** from a conversation's existing menu. Search full category paths on the left and choose a category. The conversation list initially includes direct assignments only; **Include subcategories** expands it to the entire subtree. Search conversation titles within that scope and use **Load more** for subsequent pages. Multi-category conversations appear once, and archived conversations are excluded. Existing conversation ordering is preserved, including pins within the selected scope.
+
+The browser uses additive `sessionGraphCategoryId` and `includeCategoryDescendants` filters on the cursor-paginated `GET /topics` API. The latter requires a category ID. Category IDs are validated, missing categories return an error, and the category filter intersects existing title, ID and trash filters. An SQL membership subquery avoids collecting a bounded list of candidate IDs or multiplying rows by their category bindings. The existing category-ID collection endpoint remains unchanged.
+
+Switching categories resets the conversation search, subtree toggle and pagination, and never shows results from the previous category while loading. Read failures expose a retry action. Committed topic, membership and category changes refresh the list; removing the selected category clears the selection. Before opening a conversation, the browser rechecks its active membership and reads its current title. Failed selection leaves the dialog open; cancellation or switching categories prevents late requests from opening an old target.
+
+Selection opens the existing conversation in a new tab through the shared conversation navigation boundary; detached windows use its existing new-window fallback. No context, assignment or semantic relation is changed. The picker returns both the selected category ID and current topic to its callback so a later exploration-task dialog can reuse it. Creating pending tasks and establishing source/target relations remain later slices.
 
 ### Categories when forking
 
@@ -86,7 +97,7 @@ Membership copying runs through the category-owning service inside the existing 
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based target selection is the next integration slice before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based conversation selection is available as described above; exploration-task storage and excerpt-to-target interaction are the next slices.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 

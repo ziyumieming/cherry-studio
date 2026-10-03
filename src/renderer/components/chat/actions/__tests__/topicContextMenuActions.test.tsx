@@ -65,6 +65,17 @@ function createTopicActionFixture(overrides: Partial<TopicActionContext> = {}): 
 }
 
 describe('topic context menu actions', () => {
+  it('exposes category browsing only when supported and opens it from the current conversation', async () => {
+    const onBrowseCategories = vi.fn()
+    const context = createTopicActionFixture({ onBrowseCategories })
+    const action = resolveTopicMenuActions(context).find((item) => item.id === 'topic.browse-categories')
+    expect(action).toBeDefined()
+    await executeTopicMenuAction(action!, context)
+    expect(onBrowseCategories).toHaveBeenCalledWith(topic)
+    expect(
+      resolveTopicMenuActions(createTopicActionFixture()).some((item) => item.id === 'topic.browse-categories')
+    ).toBe(false)
+  })
   it('opens category management for the selected conversation only when supported', async () => {
     const onManageCategories = vi.fn()
     const context = createTopicActionFixture({ onManageCategories })

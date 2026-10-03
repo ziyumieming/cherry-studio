@@ -74,6 +74,7 @@ export interface TopicActionContext {
   assistantMoveTargets: readonly TopicMoveAssistantTarget[]
   onMoveToAssistant?: TopicMoveToAssistantHandler
   onManageCategories?: TopicMenuHandler
+  onBrowseCategories?: TopicMenuHandler
   onOpenInNewTab?: TopicMenuHandler
   onOpenInNewWindow?: TopicMenuHandler
   onPinTopic: TopicMenuHandler
@@ -137,6 +138,21 @@ topicActionRegistry.registerAction({
   label: ({ t }) => t('session_graph.categories.title'),
   icon: () => <Tags size={14} />,
   order: 33,
+  surface: 'menu'
+})
+
+topicActionRegistry.registerCommand({
+  id: 'topic.browse-categories',
+  availability: ({ onBrowseCategories }) => ({ visible: !!onBrowseCategories, enabled: !!onBrowseCategories }),
+  run: ({ onBrowseCategories, topic }) => onBrowseCategories?.(topic)
+})
+
+topicActionRegistry.registerAction({
+  id: 'topic.browse-categories',
+  commandId: 'topic.browse-categories',
+  label: ({ t }) => t('session_graph.candidates.title'),
+  icon: () => <Tags size={14} />,
+  order: 34,
   surface: 'menu'
 })
 
