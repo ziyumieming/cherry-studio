@@ -200,6 +200,19 @@ export class SessionGraphCategoryService {
     return categories(this.rows(db)).filter((item) => ids.has(item.id))
   }
 
+  /** Copy memberships into a newly created topic inside the caller's duplication transaction. */
+  copyTopicCategoriesTx(tx: Pick<DbOrTx, 'select' | 'insert'>, sourceTopicId: string, targetTopicId: string): void {
+    const bindings = tx
+      .select({ categoryId: sessionGraphTopicCategoryTable.categoryId })
+      .from(sessionGraphTopicCategoryTable)
+      .where(eq(sessionGraphTopicCategoryTable.topicId, sourceTopicId))
+      .all()
+    if (bindings.length)
+      tx.insert(sessionGraphTopicCategoryTable)
+        .values(bindings.map(({ categoryId }) => ({ topicId: targetTopicId, categoryId })))
+        .run()
+  }
+
   setTopicCategories(topicId: string, categoryIds: string[]): void {
     application.get('DbService').withWriteTx((tx) => {
       this.assertTopic(tx, topicId)

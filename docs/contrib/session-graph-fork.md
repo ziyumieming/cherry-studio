@@ -74,11 +74,19 @@ The same dialog creates, renames, moves and deletes categories. These changes sa
 
 The dialog revalidates category paths and assignments on committed DataApi notifications. Local selections survive refresh, with deleted category IDs removed. Reads that fail or have not loaded disable editing and saving; mutation failures preserve the draft for retry. Switching to another topic does not reuse the previous topic's fetched assignments.
 
-No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Fork category inheritance and category-based target-topic navigation remain separate implementation slices; this dialog does not yet provide them.
+No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Category-based target-topic navigation remains a separate implementation slice.
+
+### Categories when forking
+
+Duplicating a completed conversation path inherits all category IDs currently assigned to the source topic. This includes forks from an earlier turn: assignments belong to the whole topic, not the copied message position. No categories or child categories are created automatically. An unclassified source remains unclassified.
+
+The inherited assignments are independent memberships. Open **Session categories** in either topic to select or create finer categories explicitly; changing one topic's assignments does not change the other. A subsequent fork inherits its immediate source's current assignments. Category IDs and their shared hierarchy remain stable, so renaming or moving a category still updates its path everywhere it is assigned.
+
+Membership copying runs through the category-owning service inside the existing topic duplication transaction. A failed insert rolls back the new topic, copied history, logical identities and shared-history locks together. Category assignment and candidate-topic refresh effects are published only after commit. This needs no migration, new endpoint or backup path; existing empty-path and pending-generation guards continue to apply.
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. The owner confirmed that a fork should inherit its source category assignments, with finer categories selected or created explicitly; it must not automatically generate children for every assigned category. Implementing this inheritance is the next fork integration slice before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based target selection is the next integration slice before exploration tasks.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 
