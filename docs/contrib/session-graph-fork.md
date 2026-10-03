@@ -4,6 +4,7 @@ sources:
   - src/main/data/services/TopicService.ts
   - src/main/data/services/MessageService.ts
   - src/main/data/db/schemas
+  - src/renderer/components/sessionGraph/SessionCategoriesPopup.tsx
 ---
 
 # Session graph development in this fork
@@ -65,14 +66,30 @@ Soft-deleted topics do not appear in candidate queries and cannot have their cat
 
 Successful category writes publish read-model refresh effects after commit. Category UI consumers should subscribe to these effects and existing topic membership notifications for trash/restore/permanent deletion, and refetch when mounted. The new tables travel with the existing whole-database backup; snapshot restoration is tested through production migration and service reads. Full backup UI acceptance remains a later desktop check.
 
-This slice exposes storage and DataApi only. It does not introduce a category page, translate generic tags into categories, inherit assignments during fork, or settle the pending automatic-child-category interaction. Category selection and management ship in the next UI slice.
+### Managing categories
+
+Open **Session categories** from a conversation's existing menu. Search matches complete category paths, so identically named categories under different parents remain distinguishable. Select multiple categories and choose **Save** to replace this conversation's assignments; searching does not discard hidden selections. Cancel leaves those assignments unchanged.
+
+The same dialog creates, renames, moves and deletes categories. These changes save immediately and affect all conversations using those categories; the dialog explains this separately from assignment saving. The parent selector excludes the category itself and its descendants. Deletion requires confirmation and reports the service's dependency error when children or conversation assignments remain. Removing an assignment in the dialog does not permit deletion until that assignment has been saved.
+
+The dialog revalidates category paths and assignments on committed DataApi notifications. Local selections survive refresh, with deleted category IDs removed. Reads that fail or have not loaded disable editing and saving; mutation failures preserve the draft for retry. Switching to another topic does not reuse the previous topic's fetched assignments.
+
+No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Fork category inheritance and category-based target-topic navigation remain separate implementation slices; this dialog does not yet provide them.
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history: a multi-label topic does not implicitly clone all its categories when it forks. Category management and selection will ship separately before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. The owner confirmed that a fork should inherit its source category assignments, with finer categories selected or created explicitly; it must not automatically generate children for every assigned category. Implementing this inheritance is the next fork integration slice before exploration tasks.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 
 An exploration task stores the selected answer excerpt, category, concrete target topic, and optional question. Users explicitly select one or several tasks when sending, append their questions to the current draft, and connect each source to the persisted target question atomically. Reference metadata is not automatically sent to the model. Full source-message snapshots are captured only before a referenced ordinary message changes or is removed; the required selected excerpt is stored at task creation. All metadata and snapshots use the existing SQLite database. Permanent deletion of referenced topics will be guarded in the same service slice that introduces references and task dependencies.
 
 Question summaries will use a separately selectable model and preserve manually edited titles. Navigation will reuse existing topic tabs and message location machinery. The global graph remains a later interactive prototype for owner feedback, after daily navigation and ownership work.
+
+## Review and requirement tracking
+
+GitHub Issues are the source of truth for this fork's questions, new requirements, owner replies and remaining work. The former local `REVIEW_QUEUE.md` and `USER_NOTES.md` are historical records and are no longer maintained. Before implementing a slice, read the relevant issues and their latest comments. An accepted decision does not imply its implementation is complete: link incremental PRs with `Refs #number`, and use closing keywords only when the whole issue is fulfilled.
+
+Category decisions are tracked in [#12](https://github.com/ziyumieming/cherry-studio/issues/12) (fork inheritance and explicit refinement), [#13](https://github.com/ziyumieming/cherry-studio/issues/13) (independent storage), and [#14](https://github.com/ziyumieming/cherry-studio/issues/14) (multiple categories). Preserve the owner's replies and append implementation status rather than replacing historical decisions. New questions can be filed asynchronously without interrupting independent work.
+
+Use the configured `github-bot` MCP service as `virginialogy[bot]` for commits, PRs and issue comments. Repository documentation and commit messages remain English; owner-facing PR descriptions and discussions use Chinese. Assign review PRs to `ziyumieming`. When the desktop tool form is unavailable, the owner authorizes calling that same configured MCP service from a script to publish the prepared request. Issue assignment alone does not configure background comment polling or wake this local development chat.

@@ -127,6 +127,11 @@ export function createTopicActionContext({
     },
     assistantMoveTargets: assistantMoveTargets.filter((target) => target.id !== topic.assistantId),
     onMoveToAssistant,
+    onManageCategories: async (topic) => {
+      const { default: SessionCategoriesPopup } =
+        await import('@renderer/components/sessionGraph/SessionCategoriesPopup')
+      await SessionCategoriesPopup.show({ topicId: topic.id })
+    },
     onOpenInNewTab,
     onOpenInNewWindow,
     onPinTopic,

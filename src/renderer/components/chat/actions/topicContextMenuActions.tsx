@@ -13,6 +13,7 @@ import {
   PanelLeft,
   PinIcon,
   PinOffIcon,
+  Tags,
   Sparkles,
   UploadIcon
 } from 'lucide-react'
@@ -72,6 +73,7 @@ export interface TopicActionContext {
   onExportYuque: TopicMenuHandler
   assistantMoveTargets: readonly TopicMoveAssistantTarget[]
   onMoveToAssistant?: TopicMoveToAssistantHandler
+  onManageCategories?: TopicMenuHandler
   onOpenInNewTab?: TopicMenuHandler
   onOpenInNewWindow?: TopicMenuHandler
   onPinTopic: TopicMenuHandler
@@ -122,6 +124,21 @@ const hasExportOption = ({ exportMenuOptions }: TopicActionContext) =>
   exportMenuOptions.obsidian ||
   exportMenuOptions.joplin ||
   exportMenuOptions.siyuan
+
+topicActionRegistry.registerCommand({
+  id: 'topic.manage-categories',
+  availability: ({ onManageCategories }) => ({ visible: !!onManageCategories, enabled: !!onManageCategories }),
+  run: ({ onManageCategories, topic }) => onManageCategories?.(topic)
+})
+
+topicActionRegistry.registerAction({
+  id: 'topic.manage-categories',
+  commandId: 'topic.manage-categories',
+  label: ({ t }) => t('session_graph.categories.title'),
+  icon: () => <Tags size={14} />,
+  order: 33,
+  surface: 'menu'
+})
 
 topicActionRegistry.registerCommand({
   id: 'topic.auto-rename',
