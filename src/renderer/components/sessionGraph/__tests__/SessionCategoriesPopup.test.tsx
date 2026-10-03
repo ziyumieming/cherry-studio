@@ -91,11 +91,11 @@ describe('Session categories', () => {
     await user.type(screen.getByRole('searchbox'), 'History')
     expect(screen.queryByRole('checkbox', { name: 'Networking / Overview' })).not.toBeInTheDocument()
     mockDataApiService.put.mockRejectedValueOnce(new Error('Save unavailable'))
-    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Save unavailable')
     expect(resolve).not.toHaveBeenCalled()
     expect(screen.getByRole('checkbox', { name: 'History / Overview' })).toBeChecked()
-    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() => expect(resolve).toHaveBeenCalledWith(true))
     expect(mockDataApiService.put).toHaveBeenLastCalledWith(
       '/topics/topic-a/session-graph-categories',
@@ -108,10 +108,10 @@ describe('Session categories', () => {
     const { resolve, changeTopic } = mount()
     await user.click(await screen.findByRole('checkbox', { name: 'History / Overview' }))
     changeTopic('topic-b')
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'History', exact: true })).toBeChecked())
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'History' })).toBeChecked())
     expect(screen.getByRole('checkbox', { name: 'History / Overview' })).not.toBeChecked()
     expect(screen.getByRole('checkbox', { name: 'Networking / Overview' })).not.toBeChecked()
-    await user.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(resolve).toHaveBeenCalledWith(false)
     expect(mockDataApiService.put).not.toHaveBeenCalled()
   })
@@ -121,10 +121,10 @@ describe('Session categories', () => {
     const user = userEvent.setup()
     mount()
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not load categories')
-    expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'New category' })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Retry' }))
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled())
   })
 
   it('refreshes changed paths and removes deleted categories without losing the remaining draft', async () => {
@@ -138,7 +138,7 @@ describe('Session categories', () => {
     )
     expect(await screen.findByRole('checkbox', { name: 'Networks / Overview' })).toBeChecked()
     expect(screen.queryByRole('checkbox', { name: 'History / Overview' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mockDataApiService.put).toHaveBeenCalledWith(
         '/topics/topic-a/session-graph-categories',
@@ -150,17 +150,17 @@ describe('Session categories', () => {
   it('renames and moves by stable ID while excluding itself and its descendants from parents', async () => {
     const user = userEvent.setup()
     mount()
-    await user.click(await screen.findByRole('button', { name: 'Edit Networking', exact: true }))
+    await user.click(await screen.findByRole('button', { name: 'Edit Networking' }))
     const name = screen.getByRole('textbox', { name: 'Name' })
     await user.clear(name)
     await user.type(name, '  Networks  ')
     screen.getByRole('combobox', { name: 'Parent category' }).focus()
     await user.keyboard('[Enter]')
-    expect(screen.queryByRole('option', { name: 'Networking', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Networking' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Networking / Overview' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('option', { name: 'History', exact: true }))
+    await user.click(screen.getByRole('option', { name: 'History' }))
     const form = name.closest('form')!
-    await user.click(within(form).getByRole('button', { name: 'Save', exact: true }))
+    await user.click(within(form).getByRole('button', { name: 'Save' }))
     await waitFor(() =>
       expect(mockDataApiService.patch).toHaveBeenCalledWith(
         `/session-graph/categories/${networkId}`,
@@ -173,12 +173,12 @@ describe('Session categories', () => {
   it('requires deletion confirmation and leaves dependency errors visible without closing', async () => {
     const user = userEvent.setup()
     const { resolve } = mount()
-    await user.click(await screen.findByRole('button', { name: 'Delete Networking', exact: true }))
+    await user.click(await screen.findByRole('button', { name: 'Delete Networking' }))
     expect(mockDataApiService.delete).not.toHaveBeenCalled()
     mockDataApiService.delete.mockRejectedValueOnce(new Error('Category has children'))
-    await user.click(screen.getByRole('button', { name: 'Confirm', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Confirm' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Category has children')
-    expect(screen.getByRole('checkbox', { name: 'Networking', exact: true })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Networking' })).toBeInTheDocument()
     expect(resolve).not.toHaveBeenCalled()
     expect(mockDataApiService.delete).toHaveBeenCalledWith(`/session-graph/categories/${networkId}`, expect.anything())
   })
@@ -189,7 +189,7 @@ describe('Session categories', () => {
     await screen.findByRole('checkbox', { name: 'Networking / Overview' })
     await user.click(screen.getByRole('button', { name: 'New category' }))
     const name = screen.getByRole('textbox', { name: 'Name' })
-    const save = within(name.closest('form')!).getByRole('button', { name: 'Save', exact: true })
+    const save = within(name.closest('form')!).getByRole('button', { name: 'Save' })
     expect(save).toBeDisabled()
     await user.type(name, '  Protocols  ')
     mockDataApiService.post.mockRejectedValueOnce(new Error('Name already exists'))
