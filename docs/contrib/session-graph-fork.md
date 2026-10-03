@@ -9,7 +9,7 @@ sources:
 
 # Session graph development in this fork
 
-This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. Product decisions and open interaction questions are tracked in the workspace's `ROADMAP.md`, `REVIEW_QUEUE.md`, and `USER_NOTES.md` outside this repository.
+This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. Product decisions and open interaction questions are tracked in GitHub Issues. The workspace's `ROADMAP.md` records progress; `REVIEW_QUEUE.md` and `USER_NOTES.md` remain historical records.
 
 ## Repository and review workflow
 
@@ -33,7 +33,7 @@ This fork adds an opt-in organization layer to ordinary Cherry Studio topic chat
 | 7. Organization | Move primary ownership while preserving other references | Enforce an acyclic primary forest |
 | 8. Graph overview | Visualize the forest and additional references | After everyday navigation works |
 
-Slices may be subdivided when a PR would otherwise become hard to review. Unconfirmed interaction choices stay in the workspace review queue; they are resolved before their dependent slice. Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic.
+Slices may be subdivided when a PR would otherwise become hard to review. Unconfirmed interaction choices stay in GitHub Issues; they are resolved before their dependent slice. Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic.
 
 ## Shared history protection
 
