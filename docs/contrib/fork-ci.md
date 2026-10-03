@@ -18,16 +18,23 @@ prompt. In Settings > Actions > General, allow the actions used by the workflows
 including third-party actions and the actionlint container. No API keys, CherryIN
 account, Feishu credentials, or personal access token are required for ordinary CI.
 
-Keep the repository's default workflow token read-only. The `changes` and
-`basic-checks` jobs explicitly request `contents: read` and `pull-requests: read`:
-`dorny/paths-filter` uses the pull request files API on PR runs. Other CI jobs
-retain the workflow's `contents: read` permission. Do not enable write tokens or
-secrets for untrusted fork PRs to run these checks.
+Keep the repository's default workflow token read-only. The `repository-checks`
+job explicitly requests `contents: read` and `pull-requests: read`:
+its `dorny/paths-filter` catalog guard uses the pull request files API on PR runs.
+The `changes` job now plans validation from Git history and needs only the
+workflow's `contents: read` permission, as do the other jobs. Do not enable write
+tokens or secrets for untrusted fork PRs to run these checks.
 
-Non-draft PRs targeting `main` trigger CI. Pushes to `main` and manual `CI` runs
-also run the existing checks. The workflow installs the pinned Node.js and pnpm
+Non-draft PRs, including stacked PRs targeting another branch, trigger CI.
+Pushes to `main` and `release/v*`, scheduled runs, and manual `CI` runs also run
+the existing checks. The workflow installs the pinned Node.js and pnpm
 versions and project dependencies on GitHub-hosted runners. Local desktop API
 settings are not transferred to those runners.
+
+Preserve the upstream validation planner's job dependencies and conditions when
+synchronizing this fork. In particular, `repository-checks` needs `changes` and
+uses its `repository` output to decide whether to run. Retain the non-PR event
+condition on `changes` so scheduled validation still executes.
 
 Feishu notifications are optional; see [the notification switch](./feishu-notify.md#ci-failure-notifications).
 The switch affects only the notification job, not CI failure detection or gates.
