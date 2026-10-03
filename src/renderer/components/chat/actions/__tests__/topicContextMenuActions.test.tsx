@@ -65,6 +65,18 @@ function createTopicActionFixture(overrides: Partial<TopicActionContext> = {}): 
 }
 
 describe('topic context menu actions', () => {
+  it('opens category management for the selected conversation only when supported', async () => {
+    const onManageCategories = vi.fn()
+    const context = createTopicActionFixture({ onManageCategories })
+    const action = resolveTopicMenuActions(context).find((item) => item.id === 'topic.manage-categories')
+    expect(action?.label).toBe('session_graph.categories.title')
+    await executeTopicMenuAction(action!, context)
+    expect(onManageCategories).toHaveBeenCalledWith(topic)
+    expect(resolveTopicMenuActions(createTopicActionFixture()).map((item) => item.id)).not.toContain(
+      'topic.manage-categories'
+    )
+  })
+
   it('exposes recoverable Archive without a destructive style or confirmation', async () => {
     const onDelete = vi.fn()
     const context = createTopicActionFixture({ onDelete })

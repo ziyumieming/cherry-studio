@@ -4,6 +4,7 @@ sources:
   - src/main/data/services/TopicService.ts
   - src/main/data/services/MessageService.ts
   - src/main/data/db/schemas
+  - src/renderer/components/sessionGraph/SessionCategoriesPopup.tsx
 ---
 
 # Session graph development in this fork
@@ -65,11 +66,19 @@ Soft-deleted topics do not appear in candidate queries and cannot have their cat
 
 Successful category writes publish read-model refresh effects after commit. Category UI consumers should subscribe to these effects and existing topic membership notifications for trash/restore/permanent deletion, and refetch when mounted. The new tables travel with the existing whole-database backup; snapshot restoration is tested through production migration and service reads. Full backup UI acceptance remains a later desktop check.
 
-This slice exposes storage and DataApi only. It does not introduce a category page, translate generic tags into categories, inherit assignments during fork, or settle the pending automatic-child-category interaction. Category selection and management ship in the next UI slice.
+### Managing categories
+
+Open **Session categories** from a conversation's existing menu. Search matches complete category paths, so identically named categories under different parents remain distinguishable. Select multiple categories and choose **Save** to replace this conversation's assignments; searching does not discard hidden selections. Cancel leaves those assignments unchanged.
+
+The same dialog creates, renames, moves and deletes categories. These changes save immediately and affect all conversations using those categories; the dialog explains this separately from assignment saving. The parent selector excludes the category itself and its descendants. Deletion requires confirmation and reports the service's dependency error when children or conversation assignments remain. Removing an assignment in the dialog does not permit deletion until that assignment has been saved.
+
+The dialog revalidates category paths and assignments on committed DataApi notifications. Local selections survive refresh, with deleted category IDs removed. Reads that fail or have not loaded disable editing and saving; mutation failures preserve the draft for retry. Switching to another topic does not reuse the previous topic's fetched assignments.
+
+No new tables or backup paths are needed for this UI. General-purpose tags are unchanged. Fork category inheritance and category-based target-topic navigation remain separate implementation slices; this dialog does not yet provide them.
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history: a multi-label topic does not implicitly clone all its categories when it forks. Category management and selection will ship separately before exploration tasks.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. The owner confirmed that a fork should inherit its source category assignments, with finer categories selected or created explicitly; it must not automatically generate children for every assigned category. Implementing this inheritance is the next fork integration slice before exploration tasks.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 
