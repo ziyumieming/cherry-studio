@@ -132,6 +132,11 @@ export function createTopicActionContext({
         await import('@renderer/components/sessionGraph/SessionCategoriesPopup')
       await SessionCategoriesPopup.show({ topicId: topic.id })
     },
+    onBrowseCategories: async () => {
+      const { default: SessionCategoryTopicsPopup } =
+        await import('@renderer/components/sessionGraph/SessionCategoryTopicsPopup')
+      await SessionCategoryTopicsPopup.show()
+    },
     onOpenInNewTab,
     onOpenInNewWindow,
     onPinTopic,

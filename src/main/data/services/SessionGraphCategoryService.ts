@@ -70,7 +70,7 @@ function notifyCategoriesChanged(kind: 'membership' | 'projection', orderChanged
 }
 
 export class SessionGraphCategoryService {
-  private rows(tx: DbOrTx): SessionGraphCategoryRow[] {
+  private rows(tx: Pick<DbOrTx, 'select'>): SessionGraphCategoryRow[] {
     return tx
       .select()
       .from(sessionGraphCategoryTable)
@@ -231,15 +231,19 @@ export class SessionGraphCategoryService {
     ])
   }
 
-  getTopicIds(id: string, includeDescendants = false): string[] {
-    const db = application.get('DbService').getDb()
-    const rows = this.rows(db)
+  getCategoryIdsTx(tx: Pick<DbOrTx, 'select'>, id: string, includeDescendants = false): string[] {
+    const rows = this.rows(tx)
     if (!rows.some((row) => row.id === id)) throw DataApiErrorFactory.notFound('SessionGraphCategory', id)
-    const ids = includeDescendants
+    return includeDescendants
       ? categories(rows)
           .filter((row) => row.path.some((item) => item.id === id))
           .map((row) => row.id)
       : [id]
+  }
+
+  getTopicIds(id: string, includeDescendants = false): string[] {
+    const db = application.get('DbService').getDb()
+    const ids = this.getCategoryIdsTx(db, id, includeDescendants)
     return db
       .selectDistinct({ id: topicTable.id })
       .from(sessionGraphTopicCategoryTable)
