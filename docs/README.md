@@ -11,6 +11,7 @@
 | [🌿 Branching Strategy](./contrib/branching-strategy.md) | Branch model for contributions, pull request guidelines, and version tag management targeting main |
 | [🖥️ Develop](./contrib/development.md) | Developer environment setup covering IDE configuration, Windows symlink support, and project install steps |
 | [Feishu Notification Script](./contrib/feishu-notify.md) | CLI script that sends Feishu webhook card notifications from GitHub Actions workflows, with command reference |
+| [CI and desktop regression in this fork](./contrib/fork-ci.md) | CI permissions, optional notifications, and desktop regression prerequisites for this fork |
 | [Linux Packaging](./contrib/linux-packaging.md) | Linux packaging flow using pinned better-sqlite3 prebuilds, with build commands and prebuild update steps |
 | [Release Workflow Operations](./contrib/release-workflow.md) | Maintainer runbook for preparing, validating, hotfixing, publishing, and synchronizing release branches |
 | [Session graph development in this fork](./contrib/session-graph-fork.md) | Development and review plan for the session graph layer in this Cherry Studio fork |
