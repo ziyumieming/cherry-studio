@@ -63,6 +63,17 @@ task choices for new tasks, and add a workflow step only for a new phase.
 See the [scenario guide](../../tests/e2e/regression/README.md) and
 [controller contract](../../scripts/e2e/regression/README.md).
 
+Run ordinary CI on each PR and keep desktop E2E manually triggered at milestones:
+shared-history protection and category UI, the exploration task/send/navigation
+loop, personal-use releases, and substantial upstream synchronization. Select
+the related cases instead of routinely running the full suite on feature PRs.
+
+Graph organization does not itself require embeddings, an Anthropic service,
+or a CherryIN account. Chat scenarios need an available chat API; knowledge
+scenarios need embeddings; agent/code scenarios need their protocol and tool
+support; CherryIN scenarios need a real CherryIN account. Removing unrelated
+requirements from graph cases first needs the controller changes below.
+
 ## Current E2E setup
 
 Run **E2E Regression Test** manually from `main`. Its `ref` input accepts only
@@ -114,6 +125,6 @@ Make a separate controller PR to validate configuration per selected case, so
 local category/navigation tests do not require unrelated CherryIN and embedding
 services. Add an explicitly reviewed trusted-ref mechanism for pre-merge testing;
 do not broadly accept arbitrary PR code in a secret-bearing run. Consider a
-Windows-only daily selection with matching aggregate expectations, retaining
+Windows-only milestone selection with matching aggregate expectations, retaining
 both platforms for cross-platform acceptance. None of these changes is included
 in the ordinary CI repair.
