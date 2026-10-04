@@ -80,4 +80,34 @@ describe('single regression artifact bundle', () => {
     expect(runStep('Assemble complete report', 'success', 'windows').status).toBe(0)
     expect(readFileSync(join(directory, 'combined-report/summary.md'), 'utf8')).toBe('Windows summary')
   })
+
+  it('collects a single platform artifact extracted directly into the download root', () => {
+    const result = JSON.stringify({ metadata: { platform: 'windows' } })
+    write('downloaded-reports/report/results.json', result)
+    write('downloaded-reports/report/blob-11-session-graph/report-win32.zip', 'blob')
+    expect(runStep('Collect platform evidence', 'success', 'windows').status).toBe(0)
+    expect(readFileSync(join(directory, 'platform-reports/windows/report/results.json'), 'utf8')).toBe(result)
+    expect(
+      readFileSync(join(directory, 'platform-reports/windows/report/blob-11-session-graph/report-win32.zip'), 'utf8')
+    ).toBe('blob')
+  })
+
+  it('keeps a flat platform artifact under its recorded platform when another platform is missing', () => {
+    write('downloaded-reports/report/results.json', JSON.stringify({ metadata: { platform: 'windows' } }))
+    expect(runStep('Collect platform evidence', 'failure').status).toBe(0)
+    expect(existsSync(join(directory, 'platform-reports/windows/report/results.json'))).toBe(true)
+    expect(existsSync(join(directory, 'platform-reports/macos'))).toBe(false)
+  })
+
+  it.each(['success', 'failure'])('uses a flat previous bundle only after %s platform jobs', (result) => {
+    write('downloaded-reports/evidence/windows/report/results.json', 'previous')
+    expect(runStep('Collect platform evidence', result, 'windows').status).toBe(0)
+    expect(existsSync(join(directory, 'platform-reports/windows/report/results.json'))).toBe(result === 'success')
+  })
+
+  it('does not substitute a flat artifact for a different selected platform', () => {
+    write('downloaded-reports/report/results.json', JSON.stringify({ metadata: { platform: 'macos' } }))
+    expect(runStep('Collect platform evidence', 'success', 'windows').status).toBe(0)
+    expect(existsSync(join(directory, 'platform-reports/windows'))).toBe(false)
+  })
 })

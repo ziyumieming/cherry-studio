@@ -487,8 +487,18 @@ jobs:
           mkdir -p platform-reports
           for platform in $TEST_PLATFORMS; do
             source="downloaded-reports/test-evidence-$platform"
+            # A single matching artifact is extracted directly into the download root.
+            if [[ ! -d "$source" && -f downloaded-reports/report/results.json ]]; then
+              recorded_platform=$(node -p "JSON.parse(require('fs').readFileSync('downloaded-reports/report/results.json', 'utf8')).metadata.platform")
+              if [[ "$recorded_platform" == "$platform" ]]; then
+                source="downloaded-reports"
+              fi
+            fi
             if [[ ! -d "$source" && "$TEST_RESULT" == "success" ]]; then
               source="downloaded-reports/test-report/evidence/$platform"
+              if [[ ! -d "$source" ]]; then
+                source="downloaded-reports/evidence/$platform"
+              fi
             fi
             if [[ -d "$source" ]]; then
               cp -a "$source" "platform-reports/$platform"
