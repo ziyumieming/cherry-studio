@@ -15,7 +15,6 @@
 | [Linux Packaging](./contrib/linux-packaging.md) | Linux packaging flow using pinned better-sqlite3 prebuilds, with build commands and prebuild update steps |
 | [Release Workflow Operations](./contrib/release-workflow.md) | Maintainer runbook for preparing, validating, hotfixing, publishing, and synchronizing release branches |
 | [Session graph development in this fork](./contrib/session-graph-fork.md) | Architecture and review conventions for the session graph layer in this Cherry Studio fork |
-| [Session graph implementation history](./contrib/session-graph-history.md) | Fixed migration snapshot of implemented session graph capabilities and their pull requests |
 | [Test Plan](./contrib/test-plan.md) | The Test Plan process for beta and rc testing, covering user participation and maintainer PR workflow |
 
 ## References

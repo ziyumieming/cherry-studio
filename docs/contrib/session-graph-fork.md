@@ -10,7 +10,7 @@ sources:
 
 # Session graph development in this fork
 
-This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. GitHub milestones, task issues and decision issues are the only active planning records. The [implementation history](./session-graph-history.md) is a fixed migration archive; former workspace planning files are retired.
+This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. GitHub milestones, task issues and decision issues are the only active planning records. Historical development progress is archived locally outside the repository; former workspace planning files are retired.
 
 ## Repository and review workflow
 
@@ -116,7 +116,7 @@ Before implementing a task, read its dependencies, related decisions and latest 
 
 Complete M1 acceptance before starting [E1](https://github.com/ziyumieming/cherry-studio/issues/34). MX supplies optional compute and does not block product milestones. The former A2 umbrella is distributed across concrete task, reference/version and ownership work instead of becoming a duplicate issue.
 
-Local `ROADMAP.md`, `REVIEW_QUEUE.md` and `USER_NOTES.md` no longer receive progress updates. The old CI/E2E memo is historical; [fork-ci.md](./fork-ci.md) retains current configuration guidance. The fixed [history archive](./session-graph-history.md) records merged capabilities and their PRs, separately from desktop acceptance.
+Local `ROADMAP.md`, `REVIEW_QUEUE.md` and `USER_NOTES.md` no longer receive progress updates. The old CI/E2E memo and fixed development history remain local historical records outside Git. [fork-ci.md](./fork-ci.md) retains current configuration guidance. Keep architecture and operating conventions in the repository, and use GitHub tasks for active progress and acceptance evidence.
 
 Category decisions are preserved in [#12](https://github.com/ziyumieming/cherry-studio/issues/12) (fork inheritance and explicit refinement), [#13](https://github.com/ziyumieming/cherry-studio/issues/13) (independent storage), and [#14](https://github.com/ziyumieming/cherry-studio/issues/14) (multiple categories). New questions can be filed asynchronously without interrupting independent work. The unanswered follow-up in [#24](https://github.com/ziyumieming/cherry-studio/issues/24) remains open; existing shared-question regeneration restrictions remain in effect.
 
