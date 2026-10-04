@@ -62,7 +62,7 @@ export async function ensureCustomChatProvider(app: RegressionApp, page: Page): 
     await expect(apiKeyInput).toHaveAttribute('type', 'password')
     await apiKeyInput.fill(apiKey)
     await page.getByRole('textbox', { name: 'OpenAI', exact: true }).fill(baseUrl)
-    await page.getByRole('textbox', { name: 'Anthropic', exact: true }).fill(anthropicBaseUrl)
+    if (anthropicBaseUrl) await page.getByRole('textbox', { name: 'Anthropic', exact: true }).fill(anthropicBaseUrl)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
     await skipNewProviderModelSetup(page)
   }

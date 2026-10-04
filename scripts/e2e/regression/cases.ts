@@ -140,6 +140,10 @@ export function selectCases(task: TaskSelection, phase?: PhaseId): RegressionCas
   )
 }
 
+export function requiresCodeTools(task: TaskSelection): boolean {
+  return selectCases(task).some(({ id }) => id === 'CODE-01' || id === 'CODE-02' || id === 'CODE-03')
+}
+
 export function caseDefinition(id: CaseId) {
   const testCase = getCase(id)
   return [

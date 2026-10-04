@@ -4,18 +4,18 @@ import { join, resolve } from 'node:path'
 
 import { normalizeRunnerArch, selectReleaseAsset, sha256File } from './artifacts'
 import { probeCapabilities } from './capabilities'
-import { PHASE_IDS, TASK_SELECTIONS } from './cases'
-import { getSensitiveConfigValues, loadTestConfig, REQUIRED_CONFIG } from './config'
+import { PHASE_IDS, requiresCodeTools, selectCases, TASK_SELECTIONS } from './cases'
+import { loadTestConfig, requiredConfigForCases, REQUIRED_CONFIG } from './config'
 import { createFixtures } from './fixtureFiles'
 import { installReleaseArtifact } from './installation'
 import { launchApp, stopOwnedApp } from './lifecycle'
 import { ensureRunDirectories, getRunPaths } from './paths'
 import { runPhase } from './phases'
 import { createRedactor } from './redaction'
-import { parseRemoteRefs, resolveTrustedRef } from './ref'
+import { parseRemoteRefs, parseTrustedCommitShas, resolveTrustedRef } from './ref'
 import { aggregateRuns, renderAggregateMarkdown, writeReports } from './report'
 import { createRun, finalizeRun, getRunVerdict, readRun, setCapabilities, updateRunMetadata, writeRun } from './state'
-import { PLATFORMS, RUN_MODES } from './types'
+import { PLATFORMS, RUN_MODES, selectedPlatforms } from './types'
 
 function argument(name: string, required = true): string | undefined {
   const index = process.argv.indexOf(`--${name}`)
@@ -80,11 +80,29 @@ async function resolveRefCommand(): Promise<void> {
     encoding: 'utf8',
     timeout: 60_000
   })
-  const resolvedRef = resolveTrustedRef(requested, parseRemoteRefs(output))
+  const resolvedRef = resolveTrustedRef(
+    requested,
+    parseRemoteRefs(output),
+    parseTrustedCommitShas(process.env.CHERRY_TEST_TRUSTED_SHAS ?? '')
+  )
+  const task = oneOf(argument('task', false) ?? 'all', TASK_SELECTIONS, 'task')
+  const platforms = selectedPlatforms(argument('platforms', false) ?? 'all')
   outputLine('mode', resolvedRef.kind)
   outputLine('name', resolvedRef.name)
   outputLine('ref', resolvedRef.ref)
   outputLine('sha', resolvedRef.sha)
+  outputLine('task', task)
+  outputLine('code-tools', String(requiresCodeTools(task)))
+  outputLine('platform-names', platforms.join(' '))
+  outputLine(
+    'matrix',
+    JSON.stringify({
+      include: platforms.map((platform) => ({
+        platform,
+        runner: platform === 'windows' ? 'windows-2022' : 'macos-latest'
+      }))
+    })
+  )
 }
 
 async function initializeCommand(): Promise<void> {
@@ -110,10 +128,22 @@ async function initializeCommand(): Promise<void> {
   writeRun(paths.runState, run)
 }
 
-async function preflightCommand(): Promise<void> {
-  const config = loadTestConfig()
-  const redacted = createRedactor(getSensitiveConfigValues(config))
-  process.stdout.write(`${JSON.stringify(redacted({ configured: REQUIRED_CONFIG }), null, 2)}\n`)
+async function preflightCommand(exportEnvironment = false): Promise<void> {
+  const task = oneOf(argument('task', false) ?? 'all', TASK_SELECTIONS, 'task')
+  const ids = selectCases(task).map(({ id }) => id)
+  loadTestConfig(process.env, ids)
+  const required = requiredConfigForCases(ids)
+  if (exportEnvironment) {
+    if (!process.env.GITHUB_ENV) throw new Error('GITHUB_ENV is required to export configuration')
+    const lines = required.map((name) => {
+      const value = process.env[name]!.trim()
+      if (/[\r\n]/.test(value)) throw new Error(`${name} must be a single-line value`)
+      return `${name}=${value}\n`
+    })
+    appendFileSync(process.env.GITHUB_ENV, lines.join(''))
+  } else {
+    process.stdout.write(`${JSON.stringify({ task, configured: required }, null, 2)}\n`)
+  }
 }
 
 async function releaseCommand(): Promise<void> {
@@ -198,7 +228,8 @@ async function aggregateCommand(): Promise<void> {
   const expectedMode = modeValue ? oneOf(modeValue, RUN_MODES, 'mode') : undefined
   const resultFiles = findFiles(input, 'results.json')
   const runs = resultFiles.map(readRun)
-  const report = aggregateRuns(runs, expectedMode)
+  const platforms = selectedPlatforms(argument('platforms', false) ?? 'all')
+  const report = aggregateRuns(runs, expectedMode, platforms)
   mkdirSync(output, { recursive: true })
   const markdown = renderAggregateMarkdown(report)
   writeFileSync(join(output, 'combined-results.json'), `${JSON.stringify(report, null, 2)}\n`)
@@ -234,6 +265,9 @@ async function main(): Promise<void> {
       break
     case 'preflight':
       await preflightCommand()
+      break
+    case 'export-config':
+      await preflightCommand(true)
       break
     case 'release':
       await releaseCommand()

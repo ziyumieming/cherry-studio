@@ -21,11 +21,11 @@ describe('single regression artifact bundle', () => {
     mkdirSync(dirname(target), { recursive: true })
     writeFileSync(target, content)
   }
-  const runStep = (name: string, result = 'success') =>
+  const runStep = (name: string, result = 'success', platforms = 'macos windows') =>
     spawnSync('bash', ['-e', '-o', 'pipefail', '-c', steps.find((step) => step.name === name)!.run!], {
       cwd: directory,
       encoding: 'utf8',
-      env: { ...process.env, TEST_RESULT: result }
+      env: { ...process.env, TEST_RESULT: result, TEST_PLATFORMS: platforms }
     })
 
   beforeEach(() => {
@@ -68,5 +68,16 @@ describe('single regression artifact bundle', () => {
     expect(runStep('Collect platform evidence', 'failure').status).toBe(0)
     expect(existsSync(join(directory, 'platform-reports/windows'))).toBe(false)
     expect(runStep('Assemble complete report').status).not.toBe(0)
+  })
+
+  it('assembles a Windows-only selection without demanding or recovering macOS evidence', () => {
+    write('downloaded-reports/test-evidence-windows/report/results.json', 'fresh')
+    write('downloaded-reports/test-report/evidence/macos/report/results.json', 'unselected')
+    write('combined-report/combined-report.md', 'Windows summary')
+    write('merged-html/index.html', 'Windows report')
+    expect(runStep('Collect platform evidence', 'success', 'windows').status).toBe(0)
+    expect(existsSync(join(directory, 'platform-reports/macos'))).toBe(false)
+    expect(runStep('Assemble complete report', 'success', 'windows').status).toBe(0)
+    expect(readFileSync(join(directory, 'combined-report/summary.md'), 'utf8')).toBe('Windows summary')
   })
 })

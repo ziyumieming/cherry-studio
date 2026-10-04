@@ -21,6 +21,30 @@ describe('regression test configuration', () => {
     )
   })
 
+  it.each(['S-01', 'N-01', 'M-03'] as const)('runs local %s without service credentials', (id) => {
+    expect(() => loadTestConfig({}, [id])).not.toThrow()
+  })
+
+  it('requires only OpenAI chat configuration for a custom-provider chat', () => {
+    const chat = {
+      CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL: validEnv.CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL,
+      CHERRY_TEST_CUSTOM_PROVIDER_API_KEY: validEnv.CHERRY_TEST_CUSTOM_PROVIDER_API_KEY,
+      CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL: validEnv.CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL
+    }
+    expect(loadTestConfig(chat, ['M-02']).customProvider.chatModel).toBe(chat.CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL)
+    expect(() => loadTestConfig({ ...chat, CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL: undefined }, ['M-02'])).toThrow(
+      'CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL'
+    )
+    expect(() => loadTestConfig(chat, ['CODE-01'])).toThrow('CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL')
+  })
+
+  it('requires real embedding and account settings only for their selected scenarios', () => {
+    expect(() => loadTestConfig({}, ['K-01'])).toThrow('CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_MODEL')
+    expect(() => loadTestConfig({}, ['M-01'])).toThrow('CHERRY_TEST_CHERRYIN_ACCOUNT')
+    expect(() => loadTestConfig({}, ['P-01'])).toThrow('CHERRY_TEST_CHERRYIN_IMAGE_MODEL')
+    expect(() => loadTestConfig({}, ['M-01'])).not.toThrow(/EMBEDDING|ANTHROPIC/)
+  })
+
   it('loads provider-scoped values for Playwright', () => {
     const config = loadTestConfig(validEnv)
 

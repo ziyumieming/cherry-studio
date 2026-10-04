@@ -4,6 +4,7 @@ import { basename, join } from 'node:path'
 import type { Browser, Page } from '@playwright/test'
 import { chromium } from '@playwright/test'
 
+import { getCase } from '../../../scripts/e2e/regression/cases'
 import { loadTestConfig, type RegressionTestConfig } from '../../../scripts/e2e/regression/config'
 import { prepareWindowsCdpConnection } from '../../../scripts/e2e/regression/debugBridge'
 import { ensureProfile, readAppRecord, restartApp, type AppRecord } from '../../../scripts/e2e/regression/lifecycle'
@@ -36,7 +37,7 @@ export class RegressionApp {
   }
 
   get config(): RegressionTestConfig {
-    return loadTestConfig()
+    return loadTestConfig(process.env, [getCase(this.caseId).id])
   }
 
   get record(): AppRecord {

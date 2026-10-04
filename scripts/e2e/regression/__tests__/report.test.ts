@@ -141,4 +141,52 @@ describe('regression report gate', () => {
     expect(markdown).toContain('| Windows | N-01 | ⏳ Pending | Task incomplete |')
     expect(markdown).toContain('Overall verdict: ⛔ Development tests blocked')
   })
+
+  it('accepts a complete Windows-only run and still blocks a missing selected platform', () => {
+    const windows = finalizeRun(
+      updatePhase(
+        completeE2eCase(
+          createRun({
+            appVersion: 'development',
+            commitSha: 'sha',
+            mode: 'branch',
+            platform: 'windows',
+            ref: 'main',
+            runner: 'windows-2022',
+            task: 'notes'
+          }),
+          'N-01',
+          'passed',
+          'Saved and restored'
+        ),
+        '02-basic-features',
+        'passed'
+      )
+    )
+    const report = aggregateRuns([windows], 'branch', ['windows'])
+    expect(report.verdict).toBe('development_pass')
+    expect(report.missingPlatforms).toEqual([])
+    const markdown = renderAggregateMarkdown(report)
+    expect(markdown).toContain('| ID | Test case | Windows |')
+    expect(markdown).not.toContain('Missing report')
+    expect(aggregateRuns([], 'branch', ['windows']).verdict).toBe('development_blocked')
+    expect(aggregateRuns([windows], 'branch').verdict).toBe('development_blocked')
+  })
+
+  it('rejects duplicate, unselected or mismatched report evidence', () => {
+    const run = createRun({
+      appVersion: 'test',
+      commitSha: 'target',
+      mode: 'branch',
+      platform: 'windows',
+      ref: 'main',
+      runner: 'windows-2022',
+      task: 'notes'
+    })
+    expect(() => aggregateRuns([run, run], 'branch', ['windows'])).toThrow('Duplicate or unexpected')
+    expect(() => aggregateRuns([run], 'branch', ['macos'])).toThrow('Duplicate or unexpected')
+    const macos = { ...run, metadata: { ...run.metadata, platform: 'macos' as const, commitSha: 'old-target' } }
+    expect(() => aggregateRuns([run, macos], 'branch')).toThrow('same target, mode and task')
+    expect(() => aggregateRuns([], 'branch', [])).toThrow('At least one platform')
+  })
 })
