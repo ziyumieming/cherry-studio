@@ -62,6 +62,10 @@ When the platform jobs succeeded, an aggregate-only rerun can recover missing
 temporary artifacts from the previous bundle. Failed platform jobs never fall
 back to old evidence. Rerunning a job replaces its same-named artifact.
 
+Collection accepts both artifact-name subdirectories and a single artifact extracted
+directly into the download root. Flat platform reports are matched by their recorded
+platform; a flat previous combined bundle is reused only after successful platform jobs.
+
 Each phase retains a blob report with a platform/phase-specific filename. The aggregate
 job uses Playwright's built-in `merge-reports` with an explicit test root for cross-OS
 paths. Bundled platform evidence retains raw logs and generated files. The JSON
