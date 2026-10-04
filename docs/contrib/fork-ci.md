@@ -75,6 +75,15 @@ shared-history protection and category UI, the exploration task/send/navigation
 loop, personal-use releases, and substantial upstream synchronization. Select
 the related cases instead of routinely running the full suite on feature PRs.
 
+Functional milestones keep separate E2E and owner UAT tasks. Start with
+[M1 acceptance](https://github.com/ziyumieming/cherry-studio/issues/29), then
+[M2](https://github.com/ziyumieming/cherry-studio/issues/40),
+[M3](https://github.com/ziyumieming/cherry-studio/issues/49),
+[M4](https://github.com/ziyumieming/cherry-studio/issues/52) and
+[M5](https://github.com/ziyumieming/cherry-studio/issues/57).
+Keep reports in those tasks and require explicit owner acceptance before
+closing each loop. CI results alone do not establish desktop UAT.
+
 Graph organization does not itself require embeddings, an Anthropic service,
 or a CherryIN account. Chat scenarios need an available chat API; knowledge
 scenarios need embeddings; agent/code scenarios need their protocol and tool
@@ -128,10 +137,12 @@ to appear in screenshots and evidence, particularly in a public repository.
 
 ## Follow-up before session graph E2E
 
-Make a separate controller PR to validate configuration per selected case, so
+[V1](https://github.com/ziyumieming/cherry-studio/issues/30) tracks a separate
+controller PR to validate configuration per selected case, so
 local category/navigation tests do not require unrelated CherryIN and embedding
 services. Add an explicitly reviewed trusted-ref mechanism for pre-merge testing;
 do not broadly accept arbitrary PR code in a secret-bearing run. Consider a
 Windows-only milestone selection with matching aggregate expectations, retaining
-both platforms for cross-platform acceptance. None of these changes is included
-in the ordinary CI repair.
+both platforms for cross-platform acceptance. Current progress and dependencies
+live in that task. These changes are not part of the ordinary CI repair or the
+planning migration; the setup requirements above describe the current workflow.

@@ -1,0 +1,33 @@
+name: Development Task
+description: Track a reviewable development or acceptance task in this fork
+labels: [task]
+type: Task
+body:
+  - type: textarea
+    id: intent
+    attributes:
+      label: Intent
+      description: Explain why this task matters and the outcome it should provide.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Describe the work included and any important boundary.
+    validations:
+      required: true
+  - type: textarea
+    id: completion
+    attributes:
+      label: Completion
+      description: List a few observable completion conditions, including verification where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Link dependencies, decisions, related pull requests, or a parent task.
+    validations:
+      required: false
