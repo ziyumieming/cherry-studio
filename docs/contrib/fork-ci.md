@@ -88,18 +88,38 @@ Graph organization does not itself require embeddings, an Anthropic service,
 or a CherryIN account. Chat scenarios need an available chat API; knowledge
 scenarios need embeddings; agent/code scenarios need their protocol and tool
 support; CherryIN scenarios need a real CherryIN account. Removing unrelated
-requirements from graph cases first needs the controller changes below.
+requirements is handled by the controller's case-specific preflight. New graph
+cases must declare their actual service requirements when registered.
 
 ## Current E2E setup
 
-Run **E2E Regression Test** manually from `main`. Its `ref` input accepts only
-`main`, `release/*` branches, and `v*` tags; ordinary feature and PR refs are
-rejected. A tag run also needs the matching release and installable assets in
-this fork. The current workflow does not run automatically on PRs.
+Run **E2E Regression Test** manually from `main`. Its `ref` input accepts
+`main`, `release/*` branches and `v*` tags. For pre-merge acceptance, a repository
+administrator can review the exact code and add its complete lowercase
+40-character commit SHA to the Actions variable `CHERRY_TEST_TRUSTED_SHAS`
+(comma or whitespace separated). Enter that same SHA in `ref`; a moving feature
+branch, PR ref or unlisted SHA is rejected. Approval of one SHA never approves
+its next commit. Remove obsolete entries after acceptance. Only reviewed code
+should be approved because it will execute with the selected test credentials.
+The controller still comes from `main` and checks out the target by immutable SHA.
+A tag run also needs the matching release and installable assets in this fork.
+The workflow does not run automatically on PRs.
+
+Select `platforms: windows` for this fork's Windows milestone checks, or keep
+the default `all` for both Windows and macOS. Matrix selection, report collection,
+assembly and aggregate verdict use the same selection. A missing selected report
+blocks acceptance; an unselected platform is not presented as missing or passed.
 
 Set the following repository Actions configuration under Settings > Secrets and
-variables > Actions. All eleven entries are currently required by global
-preflight, even when selecting `notes`, `startup-smoke`, or `provider-model-scroll`.
+variables > Actions. Requirements depend on selected cases; `all` retains the
+full eleven-entry requirement. Local `notes`, `startup-smoke`, `mini-app` and
+`provider-model-scroll` require none of these service settings. Custom chat,
+assistant, translation and similar chat flows need only the chat URL, key and
+model. Knowledge adds the embedding settings. Claude Code/Claude Agent cases
+also require the Anthropic URL; CherryIN chat/image cases require their real
+account and the corresponding model. No placeholder accounts or URLs are used.
+The config loader contains an exhaustive case-to-requirement map; register a
+new case there as well as in the case manifest.
 
 | Kind | Name | Required capability |
 | --- | --- | --- |
@@ -120,29 +140,34 @@ quotas, or rate limits. Free keys configured in the desktop app do not prove tha
 these endpoints or models are accessible from hosted runners. Use test accounts
 with suitable quotas; concurrent Windows and macOS jobs can both make API calls.
 
-The workflow provisions pinned Node.js/pnpm, project dependencies, Claude Code,
-Codex, OpenClaw, application binary dependencies, the Electron SQLite rebuild,
-and utility-process builds. It uses Playwright over Electron CDP; it does not
+The workflow always provisions pinned Node.js/pnpm and project dependencies.
+Claude Code, Codex and OpenClaw are installed only when the selected task
+includes code-tool cases.
+Application binary dependencies, the Electron SQLite rebuild and utility-process
+builds are still required for source runs. Only the selected service configuration
+is exported into the application/test environment. Preflight and export errors
+name configuration keys without printing their values.
+It uses Playwright over Electron CDP; it does not
 require a separately installed Playwright Chromium browser or user recordings.
 Native file dialogs, shortcuts, and selection cases need desktop automation.
 The controller probes Windows desktop input and macOS accessibility/screen
 capture; missing required capabilities are reported as blocked, not passed.
 Self-hosted runners would need interactive desktops and those OS permissions.
 
-The current matrix always runs Windows and macOS. Its aggregate job already has
+The selected matrix runs Windows or both platforms. Its aggregate job already has
 `actions: write` to remove this run's temporary artifacts after uploading the
 combined `test-report`; no personal token or global read/write default is needed.
 Reports are retained for 30 days. Test accounts and generated data should be safe
 to appear in screenshots and evidence, particularly in a public repository.
 
-## Follow-up before session graph E2E
+## Session graph E2E preparation
 
-[V1](https://github.com/ziyumieming/cherry-studio/issues/30) tracks a separate
-controller PR to validate configuration per selected case, so
-local category/navigation tests do not require unrelated CherryIN and embedding
-services. Add an explicitly reviewed trusted-ref mechanism for pre-merge testing;
-do not broadly accept arbitrary PR code in a secret-bearing run. Consider a
-Windows-only milestone selection with matching aggregate expectations, retaining
-both platforms for cross-platform acceptance. Current progress and dependencies
-live in that task. These changes are not part of the ordinary CI repair or the
-planning migration; the setup requirements above describe the current workflow.
+[V1](https://github.com/ziyumieming/cherry-studio/issues/30) owns controller
+preparation and its verification evidence. Merging controller changes into
+`main` is required before dispatch can use them. Unit tests, CLI preflight and
+enumeration verify preparation, not a live Electron or external-service pass.
+[V2](https://github.com/ziyumieming/cherry-studio/issues/31) owns graph-specific
+cases and actual desktop runs; owner UAT remains separate in V3. Ordinary CI
+permissions need no expansion. A repository administrator manages any required
+Actions variables/secrets and exact-SHA approvals; no personal token or CherryIN
+account is needed for local graph organization checks.

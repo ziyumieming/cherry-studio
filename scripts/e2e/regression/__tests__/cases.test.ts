@@ -7,7 +7,15 @@ import { join, resolve } from 'node:path'
 import type { JSONReport, JSONReportSuite } from '@playwright/test/reporter'
 import { parse } from 'yaml'
 
-import { getCase, missingCapabilities, PHASE_IDS, REGRESSION_CASES, selectCases, TASK_SELECTIONS } from '../cases'
+import {
+  getCase,
+  missingCapabilities,
+  PHASE_IDS,
+  REGRESSION_CASES,
+  requiresCodeTools,
+  selectCases,
+  TASK_SELECTIONS
+} from '../cases'
 
 describe('regression execution plan', () => {
   it('offers every supported task in the workflow dropdown with full regression as the default', () => {
@@ -18,7 +26,7 @@ describe('regression execution plan', () => {
     expect(task.options).toEqual(TASK_SELECTIONS)
   })
 
-  it('caches only tool downloads and still installs and checks every tool on a cache hit', () => {
+  it('installs and checks pinned tools on cache hits only when the selection uses code tools', () => {
     const workflow = parse(readFileSync(resolve('.github/workflows/e2e-regression-test.yml'), 'utf8'))
     const steps = workflow.jobs.test.steps
     const cacheIndex = steps.findIndex((step: { name: string }) => step.name === 'Cache code tool downloads')
@@ -33,7 +41,13 @@ describe('regression execution plan', () => {
       expect(cache.with.key).toContain(`\${{ ${dimension} }}`)
     }
     expect(cache.with.key).toContain("hashFiles('.github/workflows/e2e-regression-test.yml')")
-    expect(install.if).toBeUndefined()
+    expect(install.if).toBe("needs.resolve.outputs.code-tools == 'true'")
+    expect(cache.if).toBe(install.if)
+    expect(requiresCodeTools('notes')).toBe(false)
+    expect(requiresCodeTools('provider-model-scroll')).toBe(false)
+    expect(requiresCodeTools('code-cli')).toBe(true)
+    expect(requiresCodeTools('openclaw')).toBe(true)
+    expect(requiresCodeTools('all')).toBe(true)
     expect(install.run).toMatch(/^npm install --global /)
     for (const tool of ['@anthropic-ai/claude-code', '@openai/codex', 'openclaw']) {
       expect(install.run).toMatch(new RegExp(`${tool}@\\d+\\.\\d+\\.\\d+(?:\\s|$)`))

@@ -30,7 +30,7 @@ verify the answer and citations. It imports the fixtures only once. The former
 
 ## Adding or selecting a case
 
-1. Add the case to `scripts/e2e/regression/cases.ts`, including its phase, task, and required capabilities.
+1. Add the case to `scripts/e2e/regression/cases.ts`, including its phase, task, and required capabilities; declare its real service settings in `config.ts`.
 2. Register it with `test(...caseDefinition('CASE-ID'), async ({ app, mainWindow }) => { ... })`.
 3. Establish its preconditions in the scenario or domain helper. Keep selectors scoped to the relevant product surface.
 4. Run manifest tests, typechecking, and Playwright enumeration. Add a workflow step only when introducing a new phase.
@@ -48,12 +48,13 @@ The run's task selection controls which cases execute. To run only Notes, initia
 
 The repository variables/secrets are listed in `scripts/e2e/regression/config.ts`; the image model variable is `CHERRY_TEST_CHERRYIN_IMAGE_MODEL`.
 
-Custom chat provider creation fills two required endpoint URLs:
+Ordinary custom chat provider creation fills the OpenAI endpoint. Cases using
+the Anthropic protocol require its separate endpoint too:
 
 - OpenAI: `CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL` (for example, `https://api.siliconflow.cn/v1`).
 - Anthropic: `CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL` (for example, `https://api.siliconflow.cn`).
 
-Both endpoints use `CHERRY_TEST_CUSTOM_PROVIDER_API_KEY`. The embedding provider remains separately configured.
+Both endpoints use `CHERRY_TEST_CUSTOM_PROVIDER_API_KEY`. The embedding provider remains separately configured. Local cases do not require these settings, and unrelated CherryIN or embedding settings do not block chat-only selections. Full regression still requires all configured services. Select Windows-only milestone runs explicitly; the default still covers both desktop platforms.
 
 Never attach credentials or enable credential-bearing Playwright traces. HTML reports and failure screenshots are produced by Playwright and the fixture; sanitized Electron logs are copied during finalization.
 

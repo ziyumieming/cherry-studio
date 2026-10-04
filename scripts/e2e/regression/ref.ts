@@ -22,9 +22,25 @@ export function parseRemoteRefs(output: string): RemoteRef[] {
     })
 }
 
-export function resolveTrustedRef(requestedRef: string, remoteRefs: RemoteRef[]): ResolvedRef {
+export function parseTrustedCommitShas(value: string): string[] {
+  const shas = value.split(/[\s,]+/).filter(Boolean)
+  if (shas.some((sha) => !/^[a-f0-9]{40}$/.test(sha)))
+    throw new Error('Trusted commits must be full lowercase 40-character SHAs')
+  return shas
+}
+
+export function resolveTrustedRef(
+  requestedRef: string,
+  remoteRefs: RemoteRef[],
+  trustedCommitShas: readonly string[] = []
+): ResolvedRef {
   const requested = requestedRef.trim()
   if (!requested) throw new Error('Ref is required')
+  if (/^[a-f0-9]{40}$/.test(requested)) {
+    if (!trustedCommitShas.includes(requested))
+      throw new Error('Development commit is not approved in CHERRY_TEST_TRUSTED_SHAS')
+    return { kind: 'branch', name: requested, ref: requested, sha: requested }
+  }
 
   const explicitKind = requested.startsWith('refs/heads/')
     ? 'branch'

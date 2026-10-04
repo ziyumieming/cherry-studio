@@ -36,11 +36,15 @@ The workflow keeps ten separately timed steps. Each calls `run-phase`; the contr
 `run.json` schema version 2 records both cases and phases. The parent marks a phase running before starting Playwright; the reporter records test results and executor errors; a nonzero child exit also fails the phase.
 A phase left pending/running becomes blocked during finalization. Passing cases cannot hide a failed or unfinished phase. Missing platform reports block the aggregate gate.
 Only one phase writes a platform's run state at a time; keep `workers: 1` and sequential workflow steps.
-The macOS and Windows jobs run in parallel; each platform keeps its own isolated run directory.
+The default macOS and Windows jobs run in parallel; `platforms: windows` selects only Windows. Each selected platform keeps its own isolated run directory, and report aggregation requires exactly those selected platforms.
 Test names and generated report text use English. External errors and captured application content remain unchanged.
 
 Capability requirements belong to cases. Missing required capabilities skip execution with an explicit reason and are recorded as blocked, never passed.
 Capability probes are preflight checks, not evidence that a product interaction succeeded.
+
+Service configuration is checked per selected case by `config.ts`; `all` keeps the full configuration requirement. `preflight --task notes` needs no service credentials. `export-config --task ...` writes only required single-line values to `GITHUB_ENV`, without logging values. Local cases require no chat, embedding, Anthropic or CherryIN service. The Playwright fixture loads configuration for its own case, including during failure capture.
+
+Code-tool installation/cache steps run only for selections containing code-tool cases. The trusted `main` controller can also test a complete commit SHA explicitly listed by a repository administrator in `CHERRY_TEST_TRUSTED_SHAS`. Feature/PR ref names and unlisted SHAs remain rejected; approval never follows a moving branch. Keep administrator-reviewed SHA approvals separate from dispatch input. See the [fork runbook](../../../docs/contrib/fork-ci.md) for settings and permissions.
 
 ## Combined report
 
@@ -70,4 +74,4 @@ aggregate verdict remains authoritative, including missing or interrupted phases
 - `CHERRY_TEST_RUN_DIR=/tmp/cherry-regression-list pnpm test:e2e:regression --list`
 - `pnpm lint` and `pnpm docs:check`
 
-Enumeration does not launch Electron or require an initialized run. Full desktop acceptance still requires both hosted platforms and the aggregate gate.
+Enumeration does not launch Electron or require an initialized run. Desktop acceptance requires every selected hosted platform and the aggregate gate; Windows-only evidence does not certify macOS.

@@ -8,6 +8,12 @@ export type RunMode = (typeof RUN_MODES)[number]
 export type CaseStatus = (typeof CASE_STATUSES)[number]
 export type TestProfile = 'authenticated' | 'clean'
 
+export function selectedPlatforms(selection: string): readonly Platform[] {
+  if (selection === 'all') return PLATFORMS
+  if (selection === 'windows') return ['windows']
+  throw new Error('Platform selection must be all or windows')
+}
+
 export interface CaseResult {
   id: string
   status: CaseStatus
@@ -56,6 +62,7 @@ export interface AggregateReport {
   verdict: RunVerdict
   runs: RegressionRun[]
   missingPlatforms: Platform[]
+  expectedPlatforms: Platform[]
 }
 
 export interface PhaseResult {

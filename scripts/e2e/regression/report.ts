@@ -236,10 +236,37 @@ function aggregateVerdict(runs: RegressionRun[], missingPlatforms: Platform[], e
   return `${prefix}_pass`
 }
 
-export function aggregateRuns(runs: RegressionRun[], expectedMode?: RunMode): AggregateReport {
+export function aggregateRuns(
+  runs: RegressionRun[],
+  expectedMode?: RunMode,
+  expectedPlatforms: readonly Platform[] = PLATFORMS
+): AggregateReport {
+  if (expectedPlatforms.length === 0) throw new Error('At least one platform must be selected')
   const presentPlatforms = new Set(runs.map(({ metadata }) => metadata.platform))
-  const missingPlatforms = PLATFORMS.filter((platform) => !presentPlatforms.has(platform))
-  return { runs, missingPlatforms, verdict: aggregateVerdict(runs, missingPlatforms, expectedMode) }
+  if (
+    presentPlatforms.size !== runs.length ||
+    runs.some(({ metadata }) => !expectedPlatforms.includes(metadata.platform))
+  ) {
+    throw new Error('Duplicate or unexpected platform reports')
+  }
+  if (
+    runs.some(
+      ({ metadata }) =>
+        (expectedMode && metadata.mode !== expectedMode) ||
+        metadata.commitSha !== runs[0].metadata.commitSha ||
+        metadata.task !== runs[0].metadata.task ||
+        metadata.mode !== runs[0].metadata.mode
+    )
+  ) {
+    throw new Error('Platform reports must describe the same target, mode and task')
+  }
+  const missingPlatforms = expectedPlatforms.filter((platform) => !presentPlatforms.has(platform))
+  return {
+    runs,
+    missingPlatforms,
+    expectedPlatforms: [...expectedPlatforms],
+    verdict: aggregateVerdict(runs, missingPlatforms, expectedMode)
+  }
 }
 
 export function renderAggregateMarkdown(report: AggregateReport): string {
@@ -290,11 +317,11 @@ export function renderAggregateMarkdown(report: AggregateReport): string {
     '',
     '## All cases',
     '',
-    '| ID | Test case | macOS | Windows |',
-    '| --- | --- | --- | --- |',
+    `| ID | Test case | ${report.expectedPlatforms.map((platform) => PLATFORM_LABELS[platform]).join(' | ')} |`,
+    `| --- | --- | ${report.expectedPlatforms.map(() => '---').join(' | ')} |`,
     ...REGRESSION_CASES.filter(({ id }) => runs.some((run) => run.cases[id].status !== 'not_applicable')).map(
       ({ id, title }) => {
-        const statuses = PLATFORMS.map((platform) => {
+        const statuses = report.expectedPlatforms.map((platform) => {
           const run = runs.find((candidate) => candidate.metadata.platform === platform)
           return run ? STATUS_LABELS[run.cases[id].status] : '⛔ Missing report'
         })
