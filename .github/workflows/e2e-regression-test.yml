@@ -42,6 +42,8 @@ on:
           - pi-runtime
           - deepseek-harness-runtime
           - agent-basic-task
+          - session-graph-fork
+          - session-graph-categories
 
 permissions:
   contents: read
@@ -367,6 +369,16 @@ jobs:
           pnpm exec tsx scripts/e2e/regression/cli.ts run-phase
           --run-dir "$RUN_DIR"
           --phase 10-agent-runtimes
+
+      - name: Phase 11 - Session graph organization
+        if: "!cancelled() && steps.launch.outcome == 'success'"
+        continue-on-error: true
+        timeout-minutes: 30
+        shell: bash
+        run: >-
+          pnpm exec tsx scripts/e2e/regression/cli.ts run-phase
+          --run-dir "$RUN_DIR"
+          --phase 11-session-graph
 
       - name: Clear end-to-end test configuration
         if: always()

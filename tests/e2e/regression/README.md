@@ -5,7 +5,7 @@ The separate [Playwright config](../../../playwright.regression.config.ts) uses 
 
 ## File organization
 
-- Numbered `*.test.ts` files are the ten CI phases, ordered from startup to runtime tasks.
+- Numbered `*.test.ts` files are the eleven CI phases, ordered from startup to runtime tasks.
 - `fixture.ts` validates required capabilities and owns each test's CDP connection and failure evidence.
 - `RegressionApp.ts` locates windows and delegates process operations. Connecting or locating a window does not change application preferences.
 - `setup.ts` explicitly establishes English locale, onboarding/telemetry settings, and disabled desktop assistants before each non-startup scenario.
@@ -59,3 +59,23 @@ Both endpoints use `CHERRY_TEST_CUSTOM_PROVIDER_API_KEY`. The embedding provider
 Never attach credentials or enable credential-bearing Playwright traces. HTML reports and failure screenshots are produced by Playwright and the fixture; sanitized Electron logs are copied during finalization.
 
 Use the [frontend testing guidelines](../../../docs/references/testing/frontend-testing.md). Keep local changes separate from hosted runtime validation; successful enumeration and unit tests do not prove desktop permissions or external model availability.
+
+## Session graph milestone checks
+
+`SG-01` (`session-graph-fork`) sends real chat requests, forks two levels, verifies
+shared-history controls in the source and descendants, continues each path
+independently, checks category inheritance and restarts the same profile. It needs
+only the custom provider chat URL, API key and chat model.
+
+`SG-02` (`session-graph-categories`) creates and moves categories through the UI,
+assigns conversations, searches candidates, includes descendants, opens a new tab
+and verifies persistence after restart. Empty conversations, a user message and
+50 additional category memberships are persisted fixture inputs used to check
+navigation and pagination. Category edits and browser results come from the real
+UI; no assistant response or successful outcome is injected. No service settings
+are required.
+
+Both cases use unique resource names so reruns cannot reuse earlier results.
+Keep their Windows reports in [V2](https://github.com/ziyumieming/cherry-studio/issues/31).
+One task passing does not establish acceptance of both. Actual backup restoration
+and owner UAT belong to [V3](https://github.com/ziyumieming/cherry-studio/issues/32).

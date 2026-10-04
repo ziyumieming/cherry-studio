@@ -48,10 +48,10 @@ workflow's `GITHUB_TOKEN` permissions.
 ## E2E decision and scope
 
 Use the existing Playwright regression framework for completed session graph UI
-flows. The current manifest contains 21 cases across ten phases. In particular,
+flows. The current manifest contains 23 cases across eleven phases. In particular,
 `N-01` creates a note and verifies it survives a restart, and `M-03` verifies
 scrolling within a provider's model list. These are comparable in granularity to
-our feature slices. They do not cover session graph behavior.
+our feature slices. The graph-specific cases are `SG-01` and `SG-02`.
 
 Add focused cases alongside the corresponding UI slices:
 
@@ -64,8 +64,7 @@ Add focused cases alongside the corresponding UI slices:
 
 Keep identity mapping, ownership cycles, migrations, and backup restoration in
 unit/integration tests. The category storage-only slice does not need an E2E
-case before a UI entry point exists. This CI repair adds no E2E cases and does not
-claim desktop acceptance. Register future cases in `cases.ts`, update workflow
+case before a UI entry point exists. Register future cases in `cases.ts`, update workflow
 task choices for new tasks, and add a workflow step only for a new phase.
 See the [scenario guide](../../tests/e2e/regression/README.md) and
 [controller contract](../../scripts/e2e/regression/README.md).
@@ -112,8 +111,8 @@ blocks acceptance; an unselected platform is not presented as missing or passed.
 
 Set the following repository Actions configuration under Settings > Secrets and
 variables > Actions. Requirements depend on selected cases; `all` retains the
-full eleven-entry requirement. Local `notes`, `startup-smoke`, `mini-app` and
-`provider-model-scroll` require none of these service settings. Custom chat,
+full eleven-entry requirement. Local `notes`, `startup-smoke`, `mini-app`,
+`provider-model-scroll` and `session-graph-categories` require none of these service settings. Custom chat,
 assistant, translation and similar chat flows need only the chat URL, key and
 model. Knowledge adds the embedding settings. Claude Code/Claude Agent cases
 also require the Anthropic URL; CherryIN chat/image cases require their real
@@ -171,3 +170,17 @@ cases and actual desktop runs; owner UAT remains separate in V3. Ordinary CI
 permissions need no expansion. A repository administrator manages any required
 Actions variables/secrets and exact-SHA approvals; no personal token or CherryIN
 account is needed for local graph organization checks.
+
+Select `session-graph-fork` (`SG-01`) to test two levels of fork, shared-history
+read-only controls, independent continuations, inherited categories and restart
+persistence. It needs only the custom provider chat URL, API key and chat model.
+Select `session-graph-categories` (`SG-02`) to test category creation, moving and
+membership, candidate search, descendant inclusion, pagination beyond 50 results,
+opening a conversation in a new tab and restart persistence. It needs no service
+credentials. Both belong to phase `11-session-graph`; one passing task does not
+establish acceptance of the other. Run reports belong in V2, and actual backup
+restoration and owner acceptance remain part of V3.
+
+Workflow choices and the scenario controller must first be available on `main`.
+Record actual Windows run evidence separately from enumeration, type checks and
+ordinary CI. An environment-blocked or failed run keeps the acceptance task open.

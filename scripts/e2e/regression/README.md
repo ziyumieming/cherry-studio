@@ -30,7 +30,7 @@ including on profile switches and persistence-test restarts. Local controller ru
 perform the same preparation in the target checkout before `launch`; release installers
 do not need it. Restarting still stops the owned application and preserves its profile.
 
-The workflow keeps ten separately timed steps. Each calls `run-phase`; the controller intersects its phase with the run's selected task and returns immediately for unselected phases.
+The workflow keeps eleven separately timed steps. Each calls `run-phase`; the controller intersects its phase with the run's selected task and returns immediately for unselected phases.
 `cases.ts` is the execution manifest. The workflow task dropdown lists `all` and every task ID from the manifest. When adding a task, update the workflow options too; the manifest tests enforce that the lists stay in sync.
 
 `run.json` schema version 2 records both cases and phases. The parent marks a phase running before starting Playwright; the reporter records test results and executor errors; a nonzero child exit also fails the phase.

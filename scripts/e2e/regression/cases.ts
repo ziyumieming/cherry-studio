@@ -115,6 +115,20 @@ export const REGRESSION_CASES = [
     phase: '10-agent-runtimes',
     title: 'Complete a basic file task with the default Agent',
     task: 'agent-basic-task'
+  },
+  {
+    id: 'SG-01',
+    capabilities: [],
+    phase: '11-session-graph',
+    title: 'Fork shared history, inherit categories and continue independent conversations',
+    task: 'session-graph-fork'
+  },
+  {
+    id: 'SG-02',
+    capabilities: [],
+    phase: '11-session-graph',
+    title: 'Manage categories, browse conversations and preserve organization after restart',
+    task: 'session-graph-categories'
   }
 ] as const
 

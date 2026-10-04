@@ -72,7 +72,9 @@ const CASE_CONFIG: Record<CaseId, readonly RequiredConfigName[]> = {
   'A-03': ANTHROPIC_CONFIG,
   'A-04': CHAT_CONFIG,
   'A-05': CHAT_CONFIG,
-  'A-01': CHAT_CONFIG
+  'A-01': CHAT_CONFIG,
+  'SG-01': CHAT_CONFIG,
+  'SG-02': []
 }
 
 export function requiredConfigForCases(caseIds: readonly CaseId[]): RequiredConfigName[] {
