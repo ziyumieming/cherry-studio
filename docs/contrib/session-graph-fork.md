@@ -1,5 +1,5 @@
 ---
-description: Development and review plan for the session graph layer in this Cherry Studio fork
+description: Architecture and review conventions for the session graph layer in this Cherry Studio fork
 sources:
   - src/main/data/services/TopicService.ts
   - src/main/data/services/MessageService.ts
@@ -10,7 +10,7 @@ sources:
 
 # Session graph development in this fork
 
-This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. Product decisions and open interaction questions are tracked in GitHub Issues. The workspace's `ROADMAP.md` records progress; `REVIEW_QUEUE.md` and `USER_NOTES.md` remain historical records.
+This fork adds an opt-in organization layer to ordinary Cherry Studio topic chats. A topic remains the unit of model context and message storage. Agent sessions are outside this feature. The graph layer records logical turns, topic relationships, ownership, references, and exploration tasks; it does not change model behavior. GitHub milestones, task issues and decision issues are the only active planning records. The [implementation history](./session-graph-history.md) is a fixed migration archive; former workspace planning files are retired.
 
 ## Repository and review workflow
 
@@ -20,21 +20,11 @@ This fork adds an opt-in organization layer to ordinary Cherry Studio topic chat
 - Keep feature code in existing main, shared, and renderer directories. Prefer additive schemas and service APIs over changes to existing message or topic storage. The first PR that adds a user-visible action must also enforce its data invariants.
 - Verify each PR at the scope of its change. Database PRs need real migrated SQLite tests, persistence after restart, and backup/restore coverage. UI PRs need focused interaction checks. Record any limits in the PR.
 
-## Delivery slices
+## Implementation boundaries
 
-| Slice | Reviewable result | Dependency / guard |
-| --- | --- | --- |
-| 0. Fork setup | This plan, separate profile and baseline evidence | No product behavior |
-| 1. Data foundation | Additive schema and service for logical IDs and links; persistence plus whole-database backup/restore check | No user entry point yet |
-| 2. Fork identity | Copy a topic path while preserving ancestor logical IDs and assigning new IDs after the fork; persist mapping atomically | Internal operation until write guards are complete |
-| 3. Shared-ancestor protection | Block edit, regenerate, delete, and clear paths that would change shared history; explain lock in UI | Enable graph-aware fork only with complete protection |
-| 4. Exploration task | Select an assistant reply excerpt, choose label and concrete target topic, save an editable pending task | Depends on confirmed interaction details |
-| 5. Link on send | Fill a draft from a pending task and turn it into a typed relation only after successful send | Atomic task consumption and link creation |
-| 6. Daily navigation | Question summaries, topic outline, tabs, back navigation, and reading position | Uses existing topic tabs and search |
-| 7. Organization | Move primary ownership while preserving other references | Enforce an acyclic primary forest |
-| 8. Graph overview | Visualize the forest and additional references | After everyday navigation works |
+Keep storage invariants and their user entry points in reviewable task slices. A user-visible operation must enforce its invariants in the service transaction as well as in the UI. Split work into sub-issues when each part can be independently implemented and reviewed; resolve unanswered decisions before implementing their dependent behavior.
 
-Slices may be subdivided when a PR would otherwise become hard to review. Unconfirmed interaction choices stay in GitHub Issues; they are resolved before their dependent slice. Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic.
+Existing topic-internal message branches are not independent sessions. A graph-aware fork creates a new topic, records the source and physical-to-logical message mapping, and treats common ancestors as one logical history across every descendant topic. References do not implicitly copy history or supply model context. Reuse existing tabs, settings, message location and whole-database backup boundaries.
 
 ## Shared history protection
 
@@ -85,7 +75,7 @@ The browser uses additive `sessionGraphCategoryId` and `includeCategoryDescendan
 
 Switching categories resets the conversation search, subtree toggle and pagination, and never shows results from the previous category while loading. Read failures expose a retry action. Committed topic, membership and category changes refresh the list; removing the selected category clears the selection. Before opening a conversation, the browser rechecks its active membership and reads its current title. Failed selection leaves the dialog open; cancellation or switching categories prevents late requests from opening an old target.
 
-Selection opens the existing conversation in a new tab through the shared conversation navigation boundary; detached windows use its existing new-window fallback. No context, assignment or semantic relation is changed. The picker returns both the selected category ID and current topic to its callback so a later exploration-task dialog can reuse it. Creating pending tasks and establishing source/target relations remain later slices.
+Selection opens the existing conversation in a new tab through the shared conversation navigation boundary; detached windows use its existing new-window fallback. No context, assignment or semantic relation is changed. The picker returns both the selected category ID and current topic to its callback for reuse by an exploration-task dialog. Exploration tasks and source/target relations are tracked in [E](https://github.com/ziyumieming/cherry-studio/issues/33) and [F](https://github.com/ziyumieming/cherry-studio/issues/36).
 
 ### Categories when forking
 
@@ -97,7 +87,7 @@ Membership copying runs through the category-owning service inside the existing 
 
 ## Confirmed organization model
 
-Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based conversation selection is available as described above; exploration-task storage and excerpt-to-target interaction are the next slices.
+Session category labels have stable identities, a single parent category, and many-to-many topic membership. Their hierarchy is independent of fork history. Forks inherit source category assignments as described above; finer categories are selected or created explicitly. Category-based conversation selection is available as described above; related development and acceptance are tracked in GitHub.
 
 Primary semantic ownership connects whole topics, not a selected source turn. It chooses one parent for the navigable forest and rejects ownership cycles; references are equal-status graph edges that can originate at multiple turns and may contain cycles. Reassigning primary ownership preserves all references and historical fork provenance.
 
@@ -107,8 +97,29 @@ Question summaries will use a separately selectable model and preserve manually 
 
 ## Review and requirement tracking
 
-GitHub Issues are the source of truth for this fork's questions, new requirements, owner replies and remaining work. The former local `REVIEW_QUEUE.md` and `USER_NOTES.md` are historical records and are no longer maintained. Before implementing a slice, read the relevant issues and their latest comments. An accepted decision does not imply its implementation is complete: link incremental PRs with `Refs #number`, and use closing keywords only when the whole issue is fulfilled.
+GitHub is the only active progress source. Use these three levels:
 
-Category decisions are tracked in [#12](https://github.com/ziyumieming/cherry-studio/issues/12) (fork inheritance and explicit refinement), [#13](https://github.com/ziyumieming/cherry-studio/issues/13) (independent storage), and [#14](https://github.com/ziyumieming/cherry-studio/issues/14) (multiple categories). Preserve the owner's replies and append implementation status rather than replacing historical decisions. New questions can be filed asynchronously without interrupting independent work.
+- **Milestones** represent functional acceptance loops, not release versions. Close them after implementation, relevant E2E, owner UAT and required feedback fixes are complete. Do not add unagreed deadlines.
+- **Development tasks** use the `task` label and the **Development Task** form. Keep slice codes such as E1 and F2. Use native parent/sub-issue relationships; assign parents and children to the same milestone. Each reviewable implementation slice, E2E check and owner UAT has its own task.
+- **Decisions** use the `decision` label. Preserve the original question and comments, append links to the tasks that carry a confirmed answer, then close the decision. Closing it records agreement, not implementation. Unanswered follow-ups remain open.
+
+Before implementing a task, read its dependencies, related decisions and latest comments. Use `Refs #number` for partial implementation and closing keywords only when a PR fully completes a leaf task. Close a parent after all children and its own completion conditions are satisfied. Keep E2E reports and owner acceptance comments in the corresponding tasks; CI success does not substitute for desktop UAT. Feedback defects become sub-tasks in the same milestone.
+
+| Functional loop | Acceptance entry |
+| --- | --- |
+| [M1: Fork and category organization](https://github.com/ziyumieming/cherry-studio/milestone/2) | [V: E2E preparation, cases and owner UAT](https://github.com/ziyumieming/cherry-studio/issues/29) |
+| [M2: Exploration and references](https://github.com/ziyumieming/cherry-studio/milestone/3) | [V4: E2E and owner UAT](https://github.com/ziyumieming/cherry-studio/issues/40) |
+| [M3: Review and semantic ownership](https://github.com/ziyumieming/cherry-studio/milestone/4) | [V5: E2E and owner UAT](https://github.com/ziyumieming/cherry-studio/issues/49) |
+| [M4: Global graph prototype](https://github.com/ziyumieming/cherry-studio/milestone/5) | [H: Demo, feedback, iteration and E2E](https://github.com/ziyumieming/cherry-studio/issues/52) |
+| [M5: Everyday Windows use](https://github.com/ziyumieming/cherry-studio/milestone/6) | [I: Packaging, clean environment, E2E and owner UAT](https://github.com/ziyumieming/cherry-studio/issues/57) |
+| [MX: Optional remote verification](https://github.com/ziyumieming/cherry-studio/milestone/7) | [X1: Actual gh/Codespaces connection and clean installation](https://github.com/ziyumieming/cherry-studio/issues/62) |
+
+Complete M1 acceptance before starting [E1](https://github.com/ziyumieming/cherry-studio/issues/34). MX supplies optional compute and does not block product milestones. The former A2 umbrella is distributed across concrete task, reference/version and ownership work instead of becoming a duplicate issue.
+
+Local `ROADMAP.md`, `REVIEW_QUEUE.md` and `USER_NOTES.md` no longer receive progress updates. The old CI/E2E memo is historical; [fork-ci.md](./fork-ci.md) retains current configuration guidance. The fixed [history archive](./session-graph-history.md) records merged capabilities and their PRs, separately from desktop acceptance.
+
+Category decisions are preserved in [#12](https://github.com/ziyumieming/cherry-studio/issues/12) (fork inheritance and explicit refinement), [#13](https://github.com/ziyumieming/cherry-studio/issues/13) (independent storage), and [#14](https://github.com/ziyumieming/cherry-studio/issues/14) (multiple categories). New questions can be filed asynchronously without interrupting independent work. The unanswered follow-up in [#24](https://github.com/ziyumieming/cherry-studio/issues/24) remains open; existing shared-question regeneration restrictions remain in effect.
 
 Use the configured `github-bot` MCP service as `virginialogy[bot]` for commits, PRs and issue comments. Repository documentation and commit messages remain English; owner-facing PR descriptions and discussions use Chinese. Assign review PRs to `ziyumieming`. When the desktop tool form is unavailable, the owner authorizes calling that same configured MCP service from a script to publish the prepared request. Issue assignment alone does not configure background comment polling or wake this local development chat.
+
+For this migration only, the owner authorized milestone management through the official GitHub API using the same App's installation token because the configured MCP lacks milestone tools. This does not authorize other direct-API writes or personal-account publishing. No scheduled monitoring is configured.
