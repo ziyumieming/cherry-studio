@@ -8,6 +8,7 @@
 import * as z from 'zod'
 
 import { AssistantIdSchema } from '../../types/assistant'
+import { SessionGraphCategoryIdSchema } from '../../types/sessionGraphCategory'
 import { type Topic, TopicNameSchema, TopicSchema } from '../../types/topic'
 import type { CursorPaginationResponse } from '../types'
 import { type OrderEndpoints, OrderRequestSchema } from './_endpointHelpers'
@@ -52,18 +53,27 @@ export type MoveTopicDto = z.infer<typeof MoveTopicSchema>
 /**
  * Query parameters for `GET /topics` (cursor pagination + search).
  */
-export const ListTopicsQuerySchema = z.strictObject({
-  /** Exact topic ids to include. */
-  ids: z.array(z.string().min(1)).min(1).max(200).optional(),
-  /** Opaque cursor from previous page's `nextCursor`. */
-  cursor: z.string().optional(),
-  /** Page size; defaults to 50 in the service. */
-  limit: z.coerce.number().int().positive().max(200).optional(),
-  /** Substring filter on topic name (case-insensitive LIKE). */
-  q: z.string().optional(),
-  /** `true` lists only trashed topics; omitted/false lists active topics. */
-  inTrash: z.boolean().optional()
-})
+export const ListTopicsQuerySchema = z
+  .strictObject({
+    /** Exact topic ids to include. */
+    ids: z.array(z.string().min(1)).min(1).max(200).optional(),
+    /** Opaque cursor from previous page's `nextCursor`. */
+    cursor: z.string().optional(),
+    /** Page size; defaults to 50 in the service. */
+    limit: z.coerce.number().int().positive().max(200).optional(),
+    /** Substring filter on topic name (case-insensitive LIKE). */
+    q: z.string().optional(),
+    /** `true` lists only trashed topics; omitted/false lists active topics. */
+    inTrash: z.boolean().optional(),
+    /** Restrict the list to one session category, independently of general-purpose tags. */
+    sessionGraphCategoryId: SessionGraphCategoryIdSchema.optional(),
+    /** Include this category's descendants; requires sessionGraphCategoryId. */
+    includeCategoryDescendants: z.boolean().optional()
+  })
+  .refine((query) => query.includeCategoryDescendants === undefined || query.sessionGraphCategoryId !== undefined, {
+    message: 'includeCategoryDescendants requires sessionGraphCategoryId',
+    path: ['includeCategoryDescendants']
+  })
 export type ListTopicsQuery = z.infer<typeof ListTopicsQuerySchema>
 
 /** Optional owner scope for `GET /topics/latest`; omitted means global latest. */
