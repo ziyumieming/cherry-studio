@@ -21,7 +21,7 @@ describe('regression test configuration', () => {
     )
   })
 
-  it.each(['S-01', 'N-01', 'M-03'] as const)('runs local %s without service credentials', (id) => {
+  it.each(['S-01', 'N-01', 'M-03', 'SG-02'] as const)('runs local %s without service credentials', (id) => {
     expect(() => loadTestConfig({}, [id])).not.toThrow()
   })
 
@@ -35,6 +35,7 @@ describe('regression test configuration', () => {
     expect(() => loadTestConfig({ ...chat, CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL: undefined }, ['M-02'])).toThrow(
       'CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL'
     )
+    expect(loadTestConfig(chat, ['SG-01']).customProvider.chatModel).toBe(chat.CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL)
     expect(() => loadTestConfig(chat, ['CODE-01'])).toThrow('CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL')
   })
 
